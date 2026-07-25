@@ -25,6 +25,8 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
   const [gameScore, setGameScore] = useState({ correct: 0, wrong: 0 });
   const [completed, setCompleted] = useState(false);
   const [logSaved, setLogSaved] = useState(false);
+  const [gameData, setGameData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // List of 10 Games
   const gamesList = [
@@ -120,12 +122,26 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     }
   ];
 
-  const startGame = (gameId) => {
+  const startGame = async (gameId) => {
     setActiveGameId(gameId);
     setStartTime(new Date().toISOString());
     setGameScore({ correct: 0, wrong: 0 });
     setCompleted(false);
     setLogSaved(false);
+    setGameData(null);
+
+    if (["photo-recall", "memory-matching", "sequencing"].includes(gameId)) {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/games/data/${gameId}`);
+        const data = await res.json();
+        setGameData(data);
+      } catch (err) {
+        console.error("Error fetching game data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const finishGame = async (finalCorrect, finalWrong) => {
@@ -138,21 +154,20 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     const now = new Date();
     const start = startTime ? new Date(startTime) : now;
     const duration = Math.max(1, Math.round((now.getTime() - start.getTime()) / 1000));
-    const game = gamesList.find(g => g.id === activeGameId);
 
     try {
-      await fetch(`${API_BASE}/api/v1/game-logs`, {
+      await fetch(`${API_BASE}/api/games/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: "user-eleanor",
-          game_id: activeGameId,
-          game_name: game ? game.title : activeGameId,
-          start_time: startTime || now.toISOString(),
-          duration_seconds: duration,
-          correct_count: finalCorrect,
-          wrong_count: finalWrong,
-          status: "completed"
+          patientId: "user-eleanor",
+          gameKey: activeGameId,
+          durationSeconds: duration,
+          correctCount: finalCorrect,
+          wrongCount: finalWrong,
+          metrics: {
+            accuracy: Math.round((finalCorrect / Math.max(1, finalCorrect + finalWrong)) * 100)
+          }
         })
       });
     } catch (e) {
@@ -273,13 +288,16 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
           {!completed && (
             <>
               {activeGameId === "photo-recall" && (
-                <PhotoRecallGame memories={memories} onComplete={finishGame} />
+                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
+                <PhotoRecallGame gameData={gameData} memories={memories} onComplete={finishGame} />
               )}
               {activeGameId === "memory-matching" && (
-                <MemoryMatchingGame memories={memories} onComplete={finishGame} />
+                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
+                <MemoryMatchingGame gameData={gameData} memories={memories} onComplete={finishGame} />
               )}
               {activeGameId === "sequencing" && (
-                <SequencingGame memories={memories} onComplete={finishGame} />
+                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
+                <SequencingGame gameData={gameData} memories={memories} onComplete={finishGame} />
               )}
               {activeGameId === "name-the-voice" && (
                 <NameTheVoiceGame onComplete={finishGame} />
@@ -315,14 +333,14 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
 // ====================================================
 // SUB-GAME 1: Photo Recall Quiz
 // ====================================================
-function PhotoRecallGame({ memories, onComplete }) {
-  const target = memories[0] || { title: "Family Trip to Munnar", date: "2018", location: "Munnar", image_url: "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800" };
+function PhotoRecallGame({ gameData, memories, onComplete }) {
+  const target = gameData || memories[0] || { title: "Family Trip to Munnar", date: "2018", location: "Munnar", image_url: "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800" };
   const [selectedLocation, setSelectedLocation] = useState(null);
 
-  const options = ["Munnar", "Sunset Beach", "Paris", "New York"];
+  const options = target.options || ["Munnar", "Sunset Beach", "Paris", "New York"];
   const handleAnswer = (choice) => {
     setSelectedLocation(choice);
-    const isCorrect = choice === target.location || choice === "Munnar";
+    const isCorrect = choice === target.correctAnswer || choice === target.location || choice === "Munnar";
     setTimeout(() => {
       onComplete(isCorrect ? 1 : 0, isCorrect ? 0 : 1);
     }, 1200);
@@ -357,13 +375,14 @@ function PhotoRecallGame({ memories, onComplete }) {
 // ====================================================
 // SUB-GAME 2: Memory Matching Pairs
 // ====================================================
-function MemoryMatchingGame({ memories, onComplete }) {
-  const items = [
+function MemoryMatchingGame({ gameData, memories, onComplete }) {
+  const defaultItems = [
     { id: 1, content: "Munnar Trip", pairId: "A" },
     { id: 2, content: "☕ Hot Chai", pairId: "A" },
     { id: 3, content: "Wedding Day", pairId: "B" },
     { id: 4, content: "💍 St. Mary's", pairId: "B" }
   ];
+  const items = gameData?.items || defaultItems;
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
 
@@ -413,12 +432,14 @@ function MemoryMatchingGame({ memories, onComplete }) {
 // ====================================================
 // SUB-GAME 3: Life Event Sequencing
 // ====================================================
-function SequencingGame({ memories, onComplete }) {
-  const initial = [
+function SequencingGame({ gameData, memories, onComplete }) {
+  const defaultEvents = [
     { id: "e3", title: "Sunset Beach Trip (2012)" },
     { id: "e1", title: "Wedding Day (1975)" },
     { id: "e2", title: "Munnar Vacation (2018)" }
   ];
+  const initial = gameData?.events || defaultEvents;
+  const correctOrder = gameData?.correctOrder || ["e1", "e3", "e2"];
   const [sequence, setSequence] = useState(initial);
 
   const moveUp = (idx) => {
@@ -431,7 +452,7 @@ function SequencingGame({ memories, onComplete }) {
   };
 
   const verify = () => {
-    const isCorrect = sequence[0].id === "e1" && sequence[1].id === "e3" && sequence[2].id === "e2";
+    const isCorrect = sequence.map(s => s.id).join(",") === correctOrder.join(",");
     onComplete(isCorrect ? 3 : 1, isCorrect ? 0 : 2);
   };
 

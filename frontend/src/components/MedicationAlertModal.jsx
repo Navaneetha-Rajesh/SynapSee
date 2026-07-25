@@ -39,12 +39,12 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
     const nowIso = new Date().toISOString();
 
     try {
-      await fetch(`${API_BASE}/api/v1/medications/${medId}/taken`, {
+      await fetch(`${API_BASE}/api/medications/compliance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: activeAlertMed.user_id || "user-eleanor",
-          taken_at: nowIso
+          medId: medId,
+          userId: activeAlertMed.user_id || "user-eleanor"
         })
       });
     } catch (err) {

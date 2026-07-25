@@ -445,7 +445,7 @@ function PatientInterface() {
 
   const fetchData = async () => {
     try {
-      const memRes = await fetch(`${API_BASE}/api/v1/memories`);
+      const memRes = await fetch(`${API_BASE}/api/memories`);
       const mems = await memRes.json();
       if (Array.isArray(mems) && mems.length > 0) {
         setMemories(mems);
@@ -522,13 +522,16 @@ function PatientInterface() {
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.wav");
 
-      const res = await fetch(`${API_BASE}/api/v1/patient/voice-transcribe`, {
+      const res = await fetch(`${API_BASE}/api/voice/process`, {
         method: "POST",
         body: formData
       });
       const data = await res.json();
       setTranscript(data.transcript);
-      await submitTextInteraction(data.transcript);
+      setResponseMsg(data.response);
+      setRecallScore(data.cognitive_score);
+      setResponseMode(true);
+      speakText(data.response);
     } catch {
       const fallbackText = "I remember the beautiful mountains and tea fields.";
       setTranscript(fallbackText);
@@ -538,7 +541,7 @@ function PatientInterface() {
 
   const submitTextInteraction = async (textStr) => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/patient/interact`, {
+      const res = await fetch(`${API_BASE}/api/voice/process`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -547,6 +550,7 @@ function PatientInterface() {
         })
       });
       const data = await res.json();
+      setTranscript(data.transcript);
       setResponseMsg(data.response);
       setRecallScore(data.cognitive_score);
       setResponseMode(true);
@@ -841,7 +845,7 @@ function CaregiverDashboard() {
       const alertData = await alertRes.json();
       if (Array.isArray(alertData)) setAlerts(alertData);
 
-      const memRes = await fetch(`${API_BASE}/api/v1/memories`);
+      const memRes = await fetch(`${API_BASE}/api/memories`);
       const memData = await memRes.json();
       if (Array.isArray(memData) && memData.length > 0) {
         setMemories(memData);
@@ -930,7 +934,7 @@ function CaregiverDashboard() {
 
   const handleResolveAlert = async (id) => {
     try {
-      await fetch(`${API_BASE}/api/v1/caregiver/alerts/${id}/resolve`, { method: "POST" });
+      await fetch(`${API_BASE}/api/alerts/${id}/resolve`, { method: "PATCH" });
     } catch {
       console.log("Resolving alert locally.");
     }
