@@ -16,17 +16,91 @@
   --color-sky-soft: #F0F5F9;
   --color-white: #FFFFFF;
   --color-alert: #E76F51;
+  --app-font-scale: 1;
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--color-sky-soft);
   color: var(--color-navy);
+  font-size: calc(16px * var(--app-font-scale));
+  line-height: 1.6;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Accessibility: OpenDyslexic Font Helper */
+body.opendyslexic-font, 
+body.opendyslexic-font * {
+  font-family: 'Atkinson Hyperlegible', 'Comic Sans MS', 'Trebuchet MS', sans-serif !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.1em !important;
+  line-height: 1.8 !important;
+}
+
+/* Accessibility: High Contrast Mode Overlay */
+body.high-contrast-mode {
+  background-color: #000000 !important;
+  color: #FFFF00 !important;
+}
+
+body.high-contrast-mode * {
+  background-color: #000000 !important;
+  color: #FFFF00 !important;
+  border-color: #FFFFFF !important;
+}
+
+body.high-contrast-mode button,
+body.high-contrast-mode a {
+  background-color: #111111 !important;
+  color: #00FFFF !important;
+  border: 2px solid #00FFFF !important;
+  font-weight: 800 !important;
+}
+
+body.high-contrast-mode button:hover,
+body.high-contrast-mode a:hover {
+  background-color: #00FFFF !important;
+  color: #000000 !important;
+}
+
+body.high-contrast-mode img {
+  filter: contrast(140%) brightness(110%);
+}
+
+/* Accessibility: Screen Reading Ruler Overlay */
+.screen-ruler-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: rgba(255, 235, 59, 0.35);
+  border-top: 2px solid #F57F17;
+  border-bottom: 2px solid #F57F17;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 0 15px rgba(245, 127, 23, 0.4);
+  transform: translateY(-50%);
 }
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-sky-soft);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-teal);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-navy);
 }
