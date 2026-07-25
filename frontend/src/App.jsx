@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   HashRouter as Router, 
   Routes, 
@@ -397,7 +397,7 @@ function PatientInterface() {
       const data = await res.json();
       setTranscript(data.transcript);
       await submitTextInteraction(data.transcript);
-    } catch (e) {
+    } catch {
       const fallbackText = "I remember the beautiful mountains and tea fields.";
       setTranscript(fallbackText);
       await submitTextInteraction(fallbackText);
@@ -419,7 +419,7 @@ function PatientInterface() {
       setRecallScore(data.cognitive_score);
       setResponseMode(true);
       speakText(data.response);
-    } catch (e) {
+    } catch {
       const mockReply = "Oh, that sounds lovely! Munnar is indeed beautiful. Do you remember who drove us up the winding roads?";
       setResponseMsg(mockReply);
       setRecallScore(85);
@@ -599,11 +599,7 @@ function CaregiverDashboard() {
   const [vaultDesc, setVaultDesc] = useState("");
   const [vaultImg, setVaultImg] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, [patient]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     // Generate different data depending on selected patient
     if (patient === "Eleanor Vance") {
       setRoutines([
@@ -650,11 +646,15 @@ function CaregiverDashboard() {
         setMemories(memData);
         globalMemories = memData;
       }
-    } catch (e) {
+    } catch {
       console.log("Using cached global memories");
       setMemories(globalMemories);
     }
-  };
+  }, [patient]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Drag and Drop files handlers
   const handleDragOver = (e) => {
@@ -718,7 +718,7 @@ function CaregiverDashboard() {
         method: "POST",
         body: formData
       });
-    } catch (err) {
+    } catch {
       console.log("Saving locally in fallback mode.");
     }
 
@@ -739,7 +739,7 @@ function CaregiverDashboard() {
   const handleResolveAlert = async (id) => {
     try {
       await fetch(`${API_BASE}/api/v1/caregiver/alerts/${id}/resolve`, { method: "POST" });
-    } catch (e) {
+    } catch {
       console.log("Resolving alert locally.");
     }
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, status: "resolved" } : a));
@@ -756,7 +756,7 @@ function CaregiverDashboard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: nextStatus })
-        }).catch(err => console.log("Offline mode, updated client-side."));
+        }).catch(() => console.log("Offline mode, updated client-side."));
 
         return { ...r, status: nextStatus };
       }
