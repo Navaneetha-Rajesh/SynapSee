@@ -42,6 +42,7 @@ import AccessibilitySuite from './components/AccessibilitySuite';
 import TakeMeHomeGPS from './components/TakeMeHomeGPS';
 import MedicationAlertModal from './components/MedicationAlertModal';
 import CognitiveGamesHub from './components/CognitiveGamesHub';
+import VoiceInteraction from './components/VoiceInteraction';
 
 const API_BASE = "http://localhost:3000";
 
@@ -664,63 +665,7 @@ function PatientInterface({ isMuted, setIsMuted }) {
       </div>
 
       {/* 4. Dialogue Section & Microphone */}
-      <div className="bg-white rounded-3xl p-8 shadow-md border-2 border-skyblue text-center space-y-6">
-        <div className="space-y-2">
-          <span className="text-teal font-extrabold text-md uppercase tracking-wider">Memory Reminiscence Companion</span>
-          <p className="text-3xl font-black text-navy leading-tight px-4">
-            Do you remember this trip to {currentMemory.location}?
-          </p>
-        </div>
-
-        <div className="flex flex-col items-center justify-center py-4 space-y-4">
-          <button
-            onClick={recording ? stopRecording : startRecording}
-            className={`h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${recording
-                ? 'bg-alert text-white animate-pulse ring-8 ring-alert/30'
-                : 'bg-navy hover:bg-teal text-white ring-8 ring-navy/10'
-              }`}
-            aria-label={recording ? "Stop Recording" : "Start Recording"}
-          >
-            {recording ? <MicOff className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
-          </button>
-          <span className="text-teal font-black text-lg">
-            {recording ? "Listening... Tap to Save" : "Tap once to speak your memory"}
-          </span>
-        </div>
-
-        {transcript && (
-          <div className="bg-skysoft border border-skyblue p-5 rounded-2xl max-w-xl mx-auto text-left">
-            <span className="text-xs font-black text-teal block mb-1">YOUR SPOKEN RESPONSE:</span>
-            <p className="text-navy font-bold text-lg italic">"{transcript}"</p>
-          </div>
-        )}
-
-        {responseMode && (
-          <div className="bg-teal/10 border-2 border-teal/30 p-6 rounded-2xl max-w-xl mx-auto text-left space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-teal uppercase">SYNAPSEE COMPANION:</span>
-              {recallScore !== null && (
-                <span className="bg-white border border-teal/20 px-3 py-1 rounded-full text-xs font-black text-navy shadow-sm">
-                  Recall Score: {recallScore}/100
-                </span>
-              )}
-            </div>
-            <p className="text-navy font-extrabold text-xl leading-relaxed">
-              {responseMsg}
-            </p>
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                onClick={() => speakText(responseMsg)}
-                className={`flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-teal/20 hover:bg-teal/5 text-navy font-bold text-sm transition min-h-[48px] cursor-pointer ${speechActive ? 'border-teal ring-2 ring-teal/20' : ''
-                  }`}
-              >
-                <Volume2 className="h-4 w-4" />
-                <span>Listen Again</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <VoiceInteraction currentMemory={currentMemory} isMuted={isMuted} />
 
       {/* 5. Memory Vault Grid Component */}
       <div className="bg-white rounded-3xl p-6 shadow-md border-2 border-skyblue space-y-6">
