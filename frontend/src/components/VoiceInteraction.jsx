@@ -10,6 +10,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [speechActive, setSpeechActive] = useState(false);
+  const [hesitationScore, setHesitationScore] = useState(null);
   const recognitionRef = useRef(null);
 
   // Initialize Speech Recognition
@@ -52,6 +53,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
     setTranscript("");
     setResponseMsg("");
     setErrorMsg("");
+    setHesitationScore(null);
     if (window.speechSynthesis) window.speechSynthesis.cancel();
   }, [currentMemory]);
 
@@ -83,7 +85,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: "user-eleanor",
+          patientId: "11111111-1111-1111-1111-111111111111",
           transcript: textStr
         })
       });
@@ -91,6 +93,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
       const data = await res.json();
       const reply = data.response || "That's wonderful! Tell me more about that memory.";
       setResponseMsg(reply);
+      setHesitationScore(data.hesitation_score);
       speakText(reply);
     } catch (err) {
       console.warn("n8n offline, using fallback response:", err);
@@ -182,6 +185,11 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
         <div className="bg-teal/10 border-2 border-teal/30 p-6 rounded-2xl max-w-xl mx-auto text-left space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-teal uppercase">SYNAPSEE COMPANION:</span>
+            {hesitationScore !== undefined && hesitationScore !== null && (
+              <span className="bg-white border border-teal/20 px-3.5 py-1 rounded-full text-xs font-black text-navy shadow-sm">
+                Hesitation: {hesitationScore}%
+              </span>
+            )}
           </div>
           <p className="text-navy font-extrabold text-xl leading-relaxed">
             {responseMsg}

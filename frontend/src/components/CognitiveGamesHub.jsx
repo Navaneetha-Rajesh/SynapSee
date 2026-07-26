@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Brain, 
   Trophy, 
@@ -85,14 +85,22 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     setLogSaved(false);
     setGameData(null);
 
-    if (["photo-recall", "memory-matching", "sequencing"].includes(gameId)) {
+    const n8nGames = {
+      "photo-recall": "photo-recall",
+      "sequencing": "sequencing",
+      "name-the-voice": "voice-recall",
+      "continue-song": "song-completion"
+    };
+
+    if (n8nGames[gameId]) {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/games/data/${gameId}`);
+        const gameType = n8nGames[gameId];
+        const res = await fetch(`http://localhost:5678/webhook/generate-game-content?gameType=${gameType}`);
         const data = await res.json();
         setGameData(data);
       } catch (err) {
-        console.error("Error fetching game data:", err);
+        console.error("Error fetching game data from n8n:", err);
       } finally {
         setLoading(false);
       }
@@ -111,18 +119,20 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     const duration = Math.max(1, Math.round((now.getTime() - start.getTime()) / 1000));
 
     try {
-      await fetch(`${API_BASE}/api/games/log`, {
+      await fetch("http://localhost:5678/webhook/game-analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: "user-eleanor",
+          patientId: "11111111-1111-1111-1111-111111111111",
           gameKey: activeGameId,
+          score: finalCorrect,
           durationSeconds: duration,
           correctCount: finalCorrect,
           wrongCount: finalWrong,
           metrics: {
             accuracy: Math.round((finalCorrect / Math.max(1, finalCorrect + finalWrong)) * 100)
-          }
+          },
+          timestamp: new Date().toISOString()
         })
       });
     } catch (e) {
@@ -251,10 +261,12 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
                 <SequencingGame gameData={gameData} memories={memories} onComplete={finishGame} />
               )}
               {activeGameId === "name-the-voice" && (
-                <NameTheVoiceGame onComplete={finishGame} />
+                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
+                <NameTheVoiceGame gameData={gameData} onComplete={finishGame} />
               )}
               {activeGameId === "continue-song" && (
-                <ContinueTheSongGame onComplete={finishGame} />
+                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
+                <ContinueTheSongGame gameData={gameData} onComplete={finishGame} />
               )}
               {activeGameId === "find-the-smile" && (
                 <FindTheSmileGame onComplete={finishGame} />
@@ -269,28 +281,75 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
   );
 }
 
-// ====================================================
-// SUB-GAME 1: Photo Recall Quiz
-// ====================================================
 function PhotoRecallGame({ gameData, memories, onComplete }) {
-  const target = gameData || memories[0] || { title: "Family Trip to Munnar", date: "2018", location: "Munnar", image_url: "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800" };
+  const [currentQuestion, setCurrentQuestion] = useState(gameData);
+  const [questionsCount, setQuestionsCount] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [fetchingNext, setFetchingNext] = useState(false);
 
+  // Sync initial gameData
+  useEffect(() => {
+    setCurrentQuestion(gameData);
+    setQuestionsCount(0);
+    setCorrectCount(0);
+    setWrongCount(0);
+    setSelectedLocation(null);
+  }, [gameData]);
+
+  const target = currentQuestion || memories[0] || { title: "Family Trip to Munnar", date: "2018", location: "Munnar", image_url: "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800" };
   const options = target.options || ["Munnar", "Sunset Beach", "Paris", "New York"];
-  const handleAnswer = (choice) => {
+  const question = target.question || "Where was this photo taken?";
+  const imageUrl = target.photoUrl || target.image_url || (memories && memories[0]?.image_url);
+
+  const handleAnswer = async (choice) => {
     setSelectedLocation(choice);
     const isCorrect = choice === target.correctAnswer || choice === target.location || choice === "Munnar";
-    setTimeout(() => {
-      onComplete(isCorrect ? 1 : 0, isCorrect ? 0 : 1);
+    
+    const newCorrect = correctCount + (isCorrect ? 1 : 0);
+    const newWrong = wrongCount + (isCorrect ? 0 : 1);
+    setCorrectCount(newCorrect);
+    setWrongCount(newWrong);
+
+    const nextCount = questionsCount + 1;
+    setQuestionsCount(nextCount);
+
+    setTimeout(async () => {
+      if (nextCount < 3) {
+        setFetchingNext(true);
+        setSelectedLocation(null);
+        try {
+          const res = await fetch(`http://localhost:5678/webhook/generate-game-content?gameType=photo-recall`);
+          const data = await res.json();
+          setCurrentQuestion(data);
+        } catch (err) {
+          console.error("Error fetching next question:", err);
+        } finally {
+          setFetchingNext(false);
+        }
+      } else {
+        onComplete(newCorrect, newWrong);
+      }
     }, 1200);
   };
 
+  if (fetchingNext) {
+    return <div className="text-center font-bold py-12 text-navy">Loading next memory question...</div>;
+  }
+
   return (
     <div className="space-y-6 text-center max-w-xl mx-auto">
-      <h3 className="text-2xl font-black text-navy">Where was this photo taken?</h3>
-      <div className="aspect-[4/3] rounded-2xl overflow-hidden border-4 border-skyblue shadow-lg">
-        <img src={target.image_url} alt="Recall memory" className="w-full h-full object-cover" />
+      <div className="flex justify-between items-center text-xs font-black text-teal uppercase tracking-wider px-2">
+        <span>Question {questionsCount + 1} of 3</span>
+        <span>Score: {correctCount} / {questionsCount}</span>
       </div>
+      <h3 className="text-2xl font-black text-navy">{question}</h3>
+      {imageUrl && (
+        <div className="aspect-[4/3] rounded-2xl overflow-hidden border-4 border-skyblue shadow-lg">
+          <img src={imageUrl} alt="Recall memory" className="w-full h-full object-cover" />
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         {options.map((opt) => (
           <button
@@ -299,7 +358,7 @@ function PhotoRecallGame({ gameData, memories, onComplete }) {
             disabled={selectedLocation !== null}
             className={`py-4 px-6 rounded-2xl font-black text-lg shadow transition cursor-pointer border-2 ${
               selectedLocation === opt
-                ? opt === "Munnar" ? "bg-teal text-white border-teal" : "bg-alert text-white border-alert"
+                ? opt === target.correctAnswer || opt === target.location || opt === "Munnar" ? "bg-teal text-white border-teal" : "bg-alert text-white border-alert"
                 : "bg-skysoft hover:bg-skyblue text-navy border-skyblue"
             }`}
           >
@@ -323,7 +382,7 @@ function SequencingGame({ gameData, memories, onComplete }) {
     { id: "e2", title: "Munnar Vacation (2018)" }
   ];
   const initial = gameData?.events || defaultEvents;
-  const correctOrder = gameData?.correctOrder || ["e1", "e3", "e2"];
+  const correctOrder = gameData?.correctOrderIds || gameData?.correctOrder || ["e1", "e3", "e2"];
   const [sequence, setSequence] = useState(initial);
 
   const moveUp = (idx) => {
@@ -365,22 +424,39 @@ function SequencingGame({ gameData, memories, onComplete }) {
 // ====================================================
 // SUB-GAME 4: Name the Voice
 // ====================================================
-function NameTheVoiceGame({ onComplete }) {
+function NameTheVoiceGame({ gameData, onComplete }) {
   const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const defaultOptions = ["Grandson Leo", "Daughter Sarah", "Brother John", "Neighbor Paul"];
+  const options = gameData?.options || defaultOptions;
+  const question = gameData?.question || "Who is speaking in this recording?";
+  const audioUrl = gameData?.audioUrl || "";
 
   const playAudio = () => {
     setPlaying(true);
-    setTimeout(() => setPlaying(false), 3000);
+    if (audioUrl) {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(audioUrl);
+      }
+      audioRef.current.play().catch(err => console.error("Audio play error:", err));
+      audioRef.current.onended = () => setPlaying(false);
+    } else {
+      setTimeout(() => setPlaying(false), 3000);
+    }
   };
 
   const handleChoice = (name) => {
-    const isRight = name === "Grandson Leo";
+    const isRight = gameData ? name === gameData.correctAnswer : name === "Grandson Leo";
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     onComplete(isRight ? 1 : 0, isRight ? 0 : 1);
   };
 
   return (
     <div className="space-y-6 text-center max-w-md mx-auto">
-      <h3 className="text-2xl font-black text-navy">Who is speaking in this recording?</h3>
+      <h3 className="text-2xl font-black text-navy">{question}</h3>
       <button
         onClick={playAudio}
         className={`w-full py-6 rounded-2xl font-black text-xl flex items-center justify-center gap-3 cursor-pointer shadow-lg ${
@@ -391,7 +467,7 @@ function NameTheVoiceGame({ onComplete }) {
         <span>{playing ? "Playing Audio Clip..." : "Tap to Play Voice Clip"}</span>
       </button>
       <div className="grid grid-cols-2 gap-4">
-        {["Grandson Leo", "Daughter Sarah", "Brother John", "Neighbor Paul"].map((name) => (
+        {options.map((name) => (
           <button
             key={name}
             onClick={() => handleChoice(name)}
@@ -405,26 +481,88 @@ function NameTheVoiceGame({ onComplete }) {
   );
 }
 
-// ====================================================
-// SUB-GAME 6: Continue the Song
-// ====================================================
-function ContinueTheSongGame({ onComplete }) {
+function ContinueTheSongGame({ gameData, onComplete }) {
+  const [currentQuestion, setCurrentQuestion] = useState(gameData);
+  const [questionsCount, setQuestionsCount] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [fetchingNext, setFetchingNext] = useState(false);
+
+  // Sync initial gameData
+  useEffect(() => {
+    setCurrentQuestion(gameData);
+    setQuestionsCount(0);
+    setCorrectCount(0);
+    setWrongCount(0);
+    setSelectedOption(null);
+  }, [gameData]);
+
+  const defaultOptions = [
+    "You make me happy when skies are gray",
+    "Twinkle twinkle little star",
+    "Over the rainbow bluebirds fly"
+  ];
+  const options = currentQuestion?.options || defaultOptions;
+  const promptLyrics = currentQuestion?.promptLyrics || "You make me happy when skies are grey...";
+  const songTitle = currentQuestion?.songTitle || "Continue the Song";
+
+  const handleChoice = async (choice) => {
+    setSelectedOption(choice);
+    const isCorrect = currentQuestion ? choice === currentQuestion.correctAnswer : choice === defaultOptions[0];
+    
+    const newCorrect = correctCount + (isCorrect ? 1 : 0);
+    const newWrong = wrongCount + (isCorrect ? 0 : 1);
+    setCorrectCount(newCorrect);
+    setWrongCount(newWrong);
+
+    const nextCount = questionsCount + 1;
+    setQuestionsCount(nextCount);
+
+    setTimeout(async () => {
+      if (nextCount < 3) {
+        setFetchingNext(true);
+        setSelectedOption(null);
+        try {
+          const res = await fetch(`http://localhost:5678/webhook/generate-game-content?gameType=song-completion`);
+          const data = await res.json();
+          setCurrentQuestion(data);
+        } catch (err) {
+          console.error("Error fetching next song:", err);
+        } finally {
+          setFetchingNext(false);
+        }
+      } else {
+        onComplete(newCorrect, newWrong);
+      }
+    }, 1200);
+  };
+
+  if (fetchingNext) {
+    return <div className="text-center font-bold py-12 text-navy">Loading next song lyrics...</div>;
+  }
+
   return (
     <div className="space-y-6 text-center max-w-lg mx-auto">
-      <h3 className="text-2xl font-black text-navy">Continue the Song</h3>
+      <div className="flex justify-between items-center text-xs font-black text-teal uppercase tracking-wider px-2">
+        <span>Song {questionsCount + 1} of 3</span>
+        <span>Score: {correctCount} / {questionsCount}</span>
+      </div>
+      <h3 className="text-2xl font-black text-navy">{songTitle}</h3>
       <div className="bg-skysoft p-6 rounded-2xl border-2 border-skyblue italic font-bold text-lg text-navy">
-        "You are my sunshine, my only sunshine..."
+        "{promptLyrics}"
       </div>
       <div className="space-y-3">
-        {[
-          "You make me happy when skies are gray",
-          "Twinkle twinkle little star",
-          "Over the rainbow bluebirds fly"
-        ].map((line, idx) => (
+        {options.map((line) => (
           <button
             key={line}
-            onClick={() => onComplete(idx === 0 ? 1 : 0, idx === 0 ? 0 : 1)}
-            className="w-full bg-white hover:bg-skyblue border-2 border-skyblue text-navy font-black py-4 px-6 rounded-2xl text-md cursor-pointer text-left"
+            onClick={() => handleChoice(line)}
+            disabled={selectedOption !== null}
+            className={`w-full text-left font-black py-4 px-6 rounded-2xl text-md border-2 transition shadow cursor-pointer ${
+              selectedOption === line
+                ? line === (currentQuestion?.correctAnswer || defaultOptions[0]) ? "bg-teal text-white border-teal" : "bg-alert text-white border-alert"
+                : "bg-white hover:bg-skyblue border-skyblue text-navy"
+            }`}
           >
             {line}
           </button>
