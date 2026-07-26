@@ -10,7 +10,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-export default function TakeMeHomeGPS({ userHomeAddress = "742 Evergreen Terrace, Springfield, OR 97477", userHomeCoords = { lat: 44.0462, lng: -123.022 } }) {
+export default function TakeMeHomeGPS({ userHomeAddress = "Thrikkakara Temple, Kochi, Kerala", userHomeCoords = { lat: 10.0355, lng: 76.3295 } }) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentCoords, setCurrentCoords] = useState(null);
@@ -18,7 +18,6 @@ export default function TakeMeHomeGPS({ userHomeAddress = "742 Evergreen Terrace
   const handleOpenGPS = () => {
     setIsOpen(true);
     setLoading(true);
-    setErrorMsg("");
 
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -59,11 +58,11 @@ export default function TakeMeHomeGPS({ userHomeAddress = "742 Evergreen Terrace
       {/* Floating Action Button (Bottom-Right Pinned) */}
       <button
         onClick={handleOpenGPS}
-        className="fixed bottom-6 right-6 z-50 h-16 w-16 bg-teal text-white hover:bg-navy rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all transform hover:scale-105 active:scale-95 cursor-pointer group"
+        className="fixed bottom-6 right-6 z-50 h-16 w-16 bg-navy text-white hover:bg-teal rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
         title="Take Me Home GPS Guidance"
         aria-label="Open Take Me Home GPS Guidance"
       >
-        <Navigation className="h-8 w-8 text-white group-hover:rotate-12 transition-transform" />
+        <Home className="h-8 w-8 text-skyblue" />
         <span className="sr-only">Take Me Home</span>
       </button>
 
@@ -126,27 +125,7 @@ export default function TakeMeHomeGPS({ userHomeAddress = "742 Evergreen Terrace
                   </div>
                 </div>
 
-                {/* Step-by-Step Directions */}
-                <div className="space-y-3">
-                  <h4 className="font-extrabold text-navy text-sm uppercase tracking-wider flex items-center gap-2">
-                    <Compass className="h-4 w-4 text-teal" />
-                    Turn-by-Turn Walking Directions
-                  </h4>
-                  <div className="space-y-2.5">
-                    <div className="bg-skysoft p-3 rounded-xl border border-skyblue flex items-center gap-3">
-                      <div className="bg-teal text-white h-7 w-7 rounded-full font-black text-xs flex items-center justify-center shrink-0">1</div>
-                      <p className="text-sm font-semibold text-navy">Head East on Oak Street toward Main Boulevard (150 ft).</p>
-                    </div>
-                    <div className="bg-skysoft p-3 rounded-xl border border-skyblue flex items-center gap-3">
-                      <div className="bg-teal text-white h-7 w-7 rounded-full font-black text-xs flex items-center justify-center shrink-0">2</div>
-                      <p className="text-sm font-semibold text-navy">Turn right onto Evergreen Terrace (300 ft).</p>
-                    </div>
-                    <div className="bg-skysoft p-3 rounded-xl border border-skyblue flex items-center gap-3">
-                      <div className="bg-teal text-white h-7 w-7 rounded-full font-black text-xs flex items-center justify-center shrink-0">3</div>
-                      <p className="text-sm font-semibold text-navy">Your home is on the left side: 742 Evergreen Terrace.</p>
-                    </div>
-                  </div>
-                </div>
+
 
                 {/* Direct Google Maps Navigation Button */}
                 <a

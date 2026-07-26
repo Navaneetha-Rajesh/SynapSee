@@ -54,7 +54,6 @@ function Navigation() {
         <span className="tracking-tight text-3xl font-extrabold text-white">Synapsee</span>
       </Link>
       <div className="flex items-center gap-4 sm:gap-6">
-        <Link to="/" className="text-skyblue hover:text-white transition font-bold text-sm sm:text-base">Home</Link>
         <Link to="/select-role" className="bg-teal hover:bg-teal/80 text-white px-5 py-2.5 rounded-xl transition font-black text-sm shadow-md">
           Portal Login
         </Link>
@@ -591,8 +590,7 @@ function PatientInterface({ isMuted, setIsMuted }) {
   return (
     <div className="flex-1 bg-skysoft flex flex-col p-6 max-w-5xl mx-auto w-full space-y-6 text-left relative pb-28">
 
-      {/* Permanent Floating Widgets */}
-      <TakeMeHomeGPS />
+
 
       {/* 1. Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white shadow-sm rounded-3xl p-5 border border-skyblue gap-4">
@@ -1307,19 +1305,12 @@ export default function App() {
           <Route path="/dashboard" element={<CaregiverDashboard />} />
         </Routes>
 
+
         {/* Global Accessibility Suite overlay */}
         <AccessibilitySuite isMuted={isMuted} setIsMuted={setIsMuted} />
 
-        {/* Global "Take Me Home" Floating Action Button */}
-        <button
-          onClick={() => window.location.hash = "#/patient"}
-          className="fixed bottom-6 right-6 z-50 h-16 px-6 bg-teal text-white hover:bg-navy rounded-full shadow-2xl flex items-center gap-3 border-4 border-white transition-all transform hover:scale-105 active:scale-95 cursor-pointer font-black text-lg shadow-teal/30"
-          title="Take Me Home"
-          aria-label="Return to Patient Home Portal"
-        >
-          <Home className="h-6 w-6 text-white" />
-          <span>Take Me Home</span>
-        </button>
+        {/* Global "Take Me Home" GPS overlay and button */}
+        <TakeMeHomeGPS />
       </div>
     </Router>
   );
