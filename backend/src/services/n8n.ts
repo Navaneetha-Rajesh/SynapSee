@@ -6,7 +6,9 @@ dotenv.config();
 const N8N_URL = process.env.N8N_LOCAL_WEBHOOK_URL || 'http://localhost:5678/webhook';
 
 export async function triggerN8NWebhook<T>(endpoint: string, payload: any): Promise<T> {
-  const url = `${N8N_URL}/${endpoint.replace(/^\//, '')}`;
+  const sanitizedBase = N8N_URL.replace(/\/+$/, '');
+  const sanitizedEndpoint = endpoint.replace(/^\/+/, '');
+  const url = `${sanitizedBase}/${sanitizedEndpoint}`;
   console.log(`[n8n Service] Triggering webhook at: ${url}`);
   
   try {

@@ -1,26 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  HashRouter as Router, 
-  Routes, 
-  Route, 
-  Link, 
-  useNavigate 
+import {
+  HashRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useNavigate
 } from 'react-router-dom';
-import { 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  Upload, 
-  Heart, 
-  Brain, 
-  Calendar, 
-  AlertTriangle, 
-  Play, 
-  CheckCircle, 
-  Clock, 
-  Check, 
-  MapPin, 
-  Plus, 
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  Upload,
+  Heart,
+  Brain,
+  Calendar,
+  AlertTriangle,
+  Play,
+  CheckCircle,
+  Clock,
+  Check,
+  MapPin,
+  Plus,
   ArrowRight,
   Shield,
   Activity,
@@ -34,7 +34,8 @@ import {
   Gamepad2,
   Lock,
   Sparkles,
-  Key
+  Key,
+  Home
 } from 'lucide-react';
 
 import AccessibilitySuite from './components/AccessibilitySuite';
@@ -42,7 +43,7 @@ import TakeMeHomeGPS from './components/TakeMeHomeGPS';
 import MedicationAlertModal from './components/MedicationAlertModal';
 import CognitiveGamesHub from './components/CognitiveGamesHub';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:3000";
 
 // Global navigation bar
 function Navigation() {
@@ -54,12 +55,6 @@ function Navigation() {
       </Link>
       <div className="flex items-center gap-4 sm:gap-6">
         <Link to="/" className="text-skyblue hover:text-white transition font-bold text-sm sm:text-base">Home</Link>
-        <Link to="/patient" className="text-skyblue hover:text-white transition font-bold text-sm sm:text-base">Senior Portal</Link>
-        <Link to="/patient/games" className="text-skyblue hover:text-white transition font-bold text-sm sm:text-base flex items-center gap-1">
-          <Gamepad2 className="h-4 w-4 text-teal" />
-          <span>Games</span>
-        </Link>
-        <Link to="/dashboard" className="text-skyblue hover:text-white transition font-bold text-sm sm:text-base">Caregiver Hub</Link>
         <Link to="/select-role" className="bg-teal hover:bg-teal/80 text-white px-5 py-2.5 rounded-xl transition font-black text-sm shadow-md">
           Portal Login
         </Link>
@@ -124,14 +119,14 @@ function LandingPage() {
               Synapsee bridges the gap between generations. A secure memory vault and cognitive health companion designed to help seniors preserve their legacy while providing families with real-time care reassurance.
             </p>
             <div className="pt-4 flex flex-wrap gap-4">
-              <button 
+              <button
                 onClick={() => navigate('/select-role')}
                 className="bg-teal hover:bg-teal/90 text-white font-black px-8 py-4 rounded-2xl shadow-xl transition flex items-center gap-3 text-lg cursor-pointer transform hover:scale-105"
               >
                 <span>Get Started</span>
                 <ArrowRight className="h-6 w-6" />
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/patient/games')}
                 className="bg-navy border-2 border-teal hover:bg-teal/20 text-skyblue font-black px-6 py-4 rounded-2xl shadow transition flex items-center gap-2 text-lg cursor-pointer"
               >
@@ -142,9 +137,9 @@ function LandingPage() {
           </div>
           <div className="flex justify-center">
             <div className="w-full max-w-md aspect-[4/3] rounded-3xl border-4 border-teal overflow-hidden shadow-2xl relative bg-navy/40">
-              <img 
-                src="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800" 
-                alt="Senior with family" 
+              <img
+                src="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800"
+                alt="Senior with family"
                 className="w-full h-full object-cover opacity-90"
               />
               <div className="absolute inset-0 bg-navy/80 via-transparent to-transparent flex items-end p-6">
@@ -241,7 +236,7 @@ function SelectRolePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Senior User Portal */}
-          <div 
+          <div
             onClick={() => navigate('/login/user')}
             className="bg-skysoft hover:bg-teal/10 border-4 border-skyblue hover:border-teal rounded-3xl p-8 space-y-4 cursor-pointer transition transform hover:-translate-y-1 shadow-md text-left flex flex-col justify-between"
           >
@@ -261,7 +256,7 @@ function SelectRolePage() {
           </div>
 
           {/* Caregiver Hub */}
-          <div 
+          <div
             onClick={() => navigate('/login/caregiver')}
             className="bg-skysoft hover:bg-navy/10 border-4 border-skyblue hover:border-navy rounded-3xl p-8 space-y-4 cursor-pointer transition transform hover:-translate-y-1 shadow-md text-left flex flex-col justify-between"
           >
@@ -308,8 +303,8 @@ function SeniorLoginPage() {
         <form onSubmit={handleLogin} className="space-y-6 text-left">
           <div className="space-y-2">
             <label className="text-sm font-black text-navy uppercase tracking-wider block">Enter Your Easy 4-Digit PIN</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="• • • •"
@@ -319,7 +314,7 @@ function SeniorLoginPage() {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full bg-teal hover:bg-navy text-white font-black py-5 rounded-2xl shadow-xl transition text-xl cursor-pointer min-h-[56px] flex items-center justify-center gap-2"
           >
@@ -328,7 +323,7 @@ function SeniorLoginPage() {
           </button>
         </form>
 
-        <button 
+        <button
           onClick={() => navigate('/select-role')}
           className="text-navy/60 hover:text-navy font-bold text-sm underline cursor-pointer"
         >
@@ -363,8 +358,8 @@ function CaregiverLoginPage() {
         <form onSubmit={handleLogin} className="space-y-4 text-left">
           <div className="space-y-1">
             <label className="text-xs font-black text-navy uppercase tracking-wider">Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-skysoft border-2 border-skyblue rounded-2xl p-3.5 font-bold text-navy text-sm focus:outline-none focus:border-navy"
@@ -373,8 +368,8 @@ function CaregiverLoginPage() {
           </div>
           <div className="space-y-1">
             <label className="text-xs font-black text-navy uppercase tracking-wider">Password</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-skysoft border-2 border-skyblue rounded-2xl p-3.5 font-bold text-navy text-sm focus:outline-none focus:border-navy"
@@ -382,7 +377,7 @@ function CaregiverLoginPage() {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full bg-navy hover:bg-navy/90 text-white font-black py-4 rounded-2xl shadow-xl transition text-lg cursor-pointer min-h-[50px] flex items-center justify-center gap-2 mt-4"
           >
@@ -391,7 +386,7 @@ function CaregiverLoginPage() {
           </button>
         </form>
 
-        <button 
+        <button
           onClick={() => navigate('/select-role')}
           className="text-navy/60 hover:text-navy font-bold text-sm underline cursor-pointer"
         >
@@ -405,7 +400,7 @@ function CaregiverLoginPage() {
 // ----------------------------------------------------
 // VIEW 2: SENIOR / PATIENT INTERFACE
 // ----------------------------------------------------
-function PatientInterface() {
+function PatientInterface({ isMuted, setIsMuted }) {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [recording, setRecording] = useState(false);
@@ -414,11 +409,10 @@ function PatientInterface() {
   const [responseMsg, setResponseMsg] = useState("");
   const [recallScore, setRecallScore] = useState(null);
   const [speechActive, setSpeechActive] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [memories, setMemories] = useState(globalMemories);
   const [currentIdx, setCurrentIdx] = useState(globalActiveMemoryIdx);
   const [medications, setMedications] = useState([]);
-  
+
   // Search & Tag Filter for Memory Vault Grid
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("ALL");
@@ -429,7 +423,7 @@ function PatientInterface() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     fetchData();
-    
+
     const syncTimer = setInterval(() => {
       if (Array.isArray(globalMemories)) {
         setMemories([...globalMemories]);
@@ -585,8 +579,8 @@ function PatientInterface() {
     const loc = m.location || "";
     const desc = m.description || "";
 
-    const matchesSearch = searchQuery === "" || 
-      title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = searchQuery === "" ||
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       loc.toLowerCase().includes(searchQuery.toLowerCase()) ||
       desc.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -596,9 +590,8 @@ function PatientInterface() {
 
   return (
     <div className="flex-1 bg-skysoft flex flex-col p-6 max-w-5xl mx-auto w-full space-y-6 text-left relative pb-28">
-      
+
       {/* Permanent Floating Widgets */}
-      <AccessibilitySuite isMuted={isMuted} setIsMuted={setIsMuted} />
       <TakeMeHomeGPS />
 
       {/* 1. Header Bar */}
@@ -611,16 +604,16 @@ function PatientInterface() {
             {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/patient/games')}
             className="bg-teal hover:bg-teal/90 text-white font-black py-3 px-5 rounded-2xl shadow transition flex items-center gap-2 text-md cursor-pointer border border-teal"
           >
             <Gamepad2 className="h-5 w-5" />
-            <span>Play Cognitive Games (10)</span>
+            <span>Play Cognitive Games</span>
           </button>
-          
+
           <div className="flex items-center gap-2 bg-teal/10 px-4 py-2 rounded-full border border-teal/20">
             <div className="h-3 w-3 bg-teal rounded-full animate-pulse" />
             <span className="text-teal font-extrabold text-md">Synapsee Online</span>
@@ -634,9 +627,9 @@ function PatientInterface() {
       {/* 3. Memory Spotlight Card */}
       <div className="bg-white rounded-3xl p-6 shadow-md border-2 border-skyblue flex flex-col md:flex-row gap-6">
         <div className="flex-1 aspect-[4/3] rounded-2xl overflow-hidden border-2 border-skyblue relative bg-skysoft">
-          <img 
-            src={currentMemory?.image_url || currentMemory?.photo_url || globalMemories[0].image_url} 
-            alt={currentMemory?.title || "Memory photo"} 
+          <img
+            src={currentMemory?.image_url || currentMemory?.photo_url || globalMemories[0].image_url}
+            alt={currentMemory?.title || "Memory photo"}
             className="w-full h-full object-cover"
           />
           <div className="absolute top-4 left-4 bg-navy text-white px-4 py-2 rounded-xl text-md font-extrabold shadow flex items-center gap-2">
@@ -662,7 +655,7 @@ function PatientInterface() {
             )}
           </div>
 
-          <button 
+          <button
             onClick={nextMemory}
             className="mt-4 bg-skyblue hover:bg-skyblue/80 text-navy font-black py-3.5 px-6 rounded-2xl border border-teal/20 transition self-start flex items-center gap-2 text-md min-h-[48px] cursor-pointer"
           >
@@ -682,13 +675,12 @@ function PatientInterface() {
         </div>
 
         <div className="flex flex-col items-center justify-center py-4 space-y-4">
-          <button 
+          <button
             onClick={recording ? stopRecording : startRecording}
-            className={`h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${
-              recording 
-              ? 'bg-alert text-white animate-pulse ring-8 ring-alert/30' 
-              : 'bg-navy hover:bg-teal text-white ring-8 ring-navy/10'
-            }`}
+            className={`h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${recording
+                ? 'bg-alert text-white animate-pulse ring-8 ring-alert/30'
+                : 'bg-navy hover:bg-teal text-white ring-8 ring-navy/10'
+              }`}
             aria-label={recording ? "Stop Recording" : "Start Recording"}
           >
             {recording ? <MicOff className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
@@ -719,11 +711,10 @@ function PatientInterface() {
               {responseMsg}
             </p>
             <div className="flex items-center gap-2 pt-2">
-              <button 
+              <button
                 onClick={() => speakText(responseMsg)}
-                className={`flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-teal/20 hover:bg-teal/5 text-navy font-bold text-sm transition min-h-[48px] cursor-pointer ${
-                  speechActive ? 'border-teal ring-2 ring-teal/20' : ''
-                }`}
+                className={`flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-teal/20 hover:bg-teal/5 text-navy font-bold text-sm transition min-h-[48px] cursor-pointer ${speechActive ? 'border-teal ring-2 ring-teal/20' : ''
+                  }`}
               >
                 <Volume2 className="h-4 w-4" />
                 <span>Listen Again</span>
@@ -749,8 +740,8 @@ function PatientInterface() {
           {/* Search Bar */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-navy/40" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search memories..."
@@ -766,11 +757,10 @@ function PatientInterface() {
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer border ${
-                selectedTag === tag 
-                ? "bg-teal text-white border-teal shadow" 
-                : "bg-skysoft text-navy border-skyblue hover:bg-skyblue/50"
-              }`}
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer border ${selectedTag === tag
+                  ? "bg-teal text-white border-teal shadow"
+                  : "bg-skysoft text-navy border-skyblue hover:bg-skyblue/50"
+                }`}
             >
               {tag}
             </button>
@@ -780,8 +770,8 @@ function PatientInterface() {
         {/* Grid Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMemories.map((mem, idx) => (
-            <div 
-              key={mem.id} 
+            <div
+              key={mem.id}
               onClick={() => {
                 setCurrentIdx(idx);
                 globalActiveMemoryIdx = idx;
@@ -827,7 +817,7 @@ function CaregiverDashboard() {
   const [medications, setMedications] = useState([]);
   const [gameLogs, setGameLogs] = useState([]);
   const [previewMemory, setPreviewMemory] = useState(null);
-  
+
   // Memory Form state
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -954,30 +944,30 @@ function CaregiverDashboard() {
   const safeGameLogs = Array.isArray(gameLogs) ? gameLogs : [];
   const safeMemories = Array.isArray(memories) ? memories : [];
 
-  const filteredAlerts = safeAlerts.filter(a => 
-    patient === "Eleanor Vance" 
-      ? (a.patient_name === "Eleanor Vance" || a.user_id === "user-eleanor" || !a.user_id) 
+  const filteredAlerts = safeAlerts.filter(a =>
+    patient === "Eleanor Vance"
+      ? (a.patient_name === "Eleanor Vance" || a.user_id === "user-eleanor" || !a.user_id)
       : (a.patient_name === "Thomas Miller" || a.user_id === "user-thomas")
   );
 
-  const filteredMeds = safeMedications.filter(m => 
-    patient === "Eleanor Vance" 
-      ? (m.user_id === "user-eleanor" || !m.user_id) 
+  const filteredMeds = safeMedications.filter(m =>
+    patient === "Eleanor Vance"
+      ? (m.user_id === "user-eleanor" || !m.user_id)
       : (m.user_id === "user-thomas")
   );
 
-  const filteredGameLogs = safeGameLogs.filter(g => 
-    patient === "Eleanor Vance" 
-      ? (g.user_id === "user-eleanor" || !g.user_id) 
+  const filteredGameLogs = safeGameLogs.filter(g =>
+    patient === "Eleanor Vance"
+      ? (g.user_id === "user-eleanor" || !g.user_id)
       : (g.user_id === "user-thomas")
   );
 
   const activeAlerts = filteredAlerts.filter(a => a.status === "active");
   const completedMeds = filteredMeds.filter(m => m.taken_status === "taken");
   const medAdherencePct = filteredMeds.length > 0 ? Math.round((completedMeds.length / filteredMeds.length) * 100) : 100;
-  
+
   const totalGamesPlayed = filteredGameLogs.length;
-  const avgGameAccuracy = filteredGameLogs.length > 0 
+  const avgGameAccuracy = filteredGameLogs.length > 0
     ? Math.round(filteredGameLogs.reduce((acc, g) => acc + (g.accuracy_pct || 80), 0) / filteredGameLogs.length)
     : (patient === "Eleanor Vance" ? 85 : 62);
 
@@ -991,8 +981,8 @@ function CaregiverDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <label className="text-navy font-black text-sm">Active Patient:</label>
-          <select 
-            value={patient} 
+          <select
+            value={patient}
             onChange={(e) => setPatient(e.target.value)}
             className="bg-skysoft border-2 border-skyblue font-extrabold text-navy py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal cursor-pointer text-sm"
           >
@@ -1041,7 +1031,7 @@ function CaregiverDashboard() {
 
       {/* Main Grid 2x2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* CARD 1: Real-Time Game Analytics Panel */}
         <div className="bg-white rounded-3xl p-6 border-2 border-skyblue shadow-sm space-y-6">
           <div className="border-b border-skyblue pb-4 flex items-center justify-between">
@@ -1103,9 +1093,8 @@ function CaregiverDashboard() {
                     </div>
                   </div>
 
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${
-                    med.taken_status === "taken" ? "bg-teal/10 text-teal border border-teal/20" : "bg-alert/10 text-alert border border-alert/20"
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${med.taken_status === "taken" ? "bg-teal/10 text-teal border border-teal/20" : "bg-alert/10 text-alert border border-alert/20"
+                    }`}>
                     {med.taken_status === "taken" ? `Taken (${med.taken_at ? new Date(med.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Logged'})` : "Pending Alert"}
                   </span>
                 </div>
@@ -1142,14 +1131,14 @@ function CaregiverDashboard() {
                     </div>
                     <p className="font-black text-navy text-md">{alertItem.description || alertItem.message}</p>
                     <div className="flex gap-3 pt-1">
-                      <button 
+                      <button
                         onClick={() => alert(`Dialing emergency contact for ${alertItem.patient_name || patient}...`)}
                         className="flex-grow bg-navy text-white font-black py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Phone className="h-4 w-4 text-skyblue" />
                         <span>Call Patient</span>
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleResolveAlert(alertItem.id)}
                         className="flex-grow bg-white border border-skyblue text-navy font-black py-2.5 px-4 rounded-xl text-xs cursor-pointer"
                       >
@@ -1174,14 +1163,13 @@ function CaregiverDashboard() {
           </div>
 
           <form onSubmit={handleAddMemorySubmit} className="space-y-4">
-            <div 
+            <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center ${
-                isDragOver ? 'border-teal bg-teal/5' : 'border-skyblue hover:bg-skysoft/50'
-              }`}
+              className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center ${isDragOver ? 'border-teal bg-teal/5' : 'border-skyblue hover:bg-skysoft/50'
+                }`}
             >
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
               <Upload className="h-6 w-6 text-teal mb-1" />
@@ -1189,50 +1177,50 @@ function CaregiverDashboard() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <input 
-                type="text" 
-                value={vaultTitle} 
-                onChange={(e) => setVaultTitle(e.target.value)} 
+              <input
+                type="text"
+                value={vaultTitle}
+                onChange={(e) => setVaultTitle(e.target.value)}
                 placeholder="Title (e.g. Munnar Trip)"
                 className="bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
                 required
               />
-              <input 
-                type="text" 
-                value={vaultLocation} 
-                onChange={(e) => setVaultLocation(e.target.value)} 
+              <input
+                type="text"
+                value={vaultLocation}
+                onChange={(e) => setVaultLocation(e.target.value)}
                 placeholder="Location (e.g. Munnar)"
                 className="bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <input 
-                type="text" 
-                value={vaultDate} 
-                onChange={(e) => setVaultDate(e.target.value)} 
+              <input
+                type="text"
+                value={vaultDate}
+                onChange={(e) => setVaultDate(e.target.value)}
                 placeholder="Year (e.g. 2018)"
                 className="bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
               />
-              <input 
-                type="text" 
-                value={vaultPeople} 
-                onChange={(e) => setVaultPeople(e.target.value)} 
+              <input
+                type="text"
+                value={vaultPeople}
+                onChange={(e) => setVaultPeople(e.target.value)}
                 placeholder="People Tags (comma separated)"
                 className="bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
               />
             </div>
 
-            <textarea 
-              value={vaultDesc} 
-              onChange={(e) => setVaultDesc(e.target.value)} 
+            <textarea
+              value={vaultDesc}
+              onChange={(e) => setVaultDesc(e.target.value)}
               rows="2"
               placeholder="Description & story details..."
               className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal resize-none"
               required
             />
 
-            <button 
+            <button
               type="submit"
               className="bg-navy hover:bg-navy/95 text-white font-black py-3 px-6 rounded-xl text-sm transition flex items-center justify-center gap-2 w-full cursor-pointer"
             >
@@ -1246,8 +1234,8 @@ function CaregiverDashboard() {
             <span className="text-xs font-black text-teal uppercase block">Vault Gallery (Click to Spotlight)</span>
             <div className="grid grid-cols-4 gap-3 max-h-[140px] overflow-y-auto">
               {safeMemories.map((mem, index) => (
-                <div 
-                  key={mem.id} 
+                <div
+                  key={mem.id}
                   onClick={() => setPreviewMemory({ mem, index })}
                   className="relative group aspect-square rounded-xl overflow-hidden border border-skyblue bg-skysoft cursor-pointer hover:border-teal transition"
                 >
@@ -1270,13 +1258,13 @@ function CaregiverDashboard() {
             <h4 className="text-2xl font-black text-navy">{previewMemory.mem.title}</h4>
             <p className="text-navy/70 text-xs font-medium">{previewMemory.mem.description}</p>
             <div className="flex gap-3 pt-2">
-              <button 
+              <button
                 onClick={() => { handlePushSpotlight(previewMemory.index); setPreviewMemory(null); }}
                 className="flex-grow bg-navy text-white font-black py-3 rounded-xl text-sm cursor-pointer"
               >
                 Push Spotlight to Senior
               </button>
-              <button 
+              <button
                 onClick={() => setPreviewMemory(null)}
                 className="bg-skysoft text-navy font-black py-3 px-4 rounded-xl text-sm cursor-pointer border border-skyblue"
               >
@@ -1295,6 +1283,11 @@ function CaregiverDashboard() {
 // ----------------------------------------------------
 export default function App() {
   const [memories, setMemories] = useState(globalMemories);
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem('synapsee_is_muted') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('synapsee_is_muted', String(isMuted));
+  }, [isMuted]);
 
   const handleReturnToDashboard = () => {
     window.location.hash = "#/patient";
@@ -1302,17 +1295,31 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-skysoft flex flex-col font-sans">
+      <div className="min-h-screen bg-skysoft flex flex-col font-sans relative">
         <Navigation />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/select-role" element={<SelectRolePage />} />
           <Route path="/login/user" element={<SeniorLoginPage />} />
           <Route path="/login/caregiver" element={<CaregiverLoginPage />} />
-          <Route path="/patient" element={<PatientInterface />} />
+          <Route path="/patient" element={<PatientInterface isMuted={isMuted} setIsMuted={setIsMuted} />} />
           <Route path="/patient/games" element={<CognitiveGamesHub memories={memories} onReturnToDashboard={handleReturnToDashboard} />} />
           <Route path="/dashboard" element={<CaregiverDashboard />} />
         </Routes>
+
+        {/* Global Accessibility Suite overlay */}
+        <AccessibilitySuite isMuted={isMuted} setIsMuted={setIsMuted} />
+
+        {/* Global "Take Me Home" Floating Action Button */}
+        <button
+          onClick={() => window.location.hash = "#/patient"}
+          className="fixed bottom-6 right-6 z-50 h-16 px-6 bg-teal text-white hover:bg-navy rounded-full shadow-2xl flex items-center gap-3 border-4 border-white transition-all transform hover:scale-105 active:scale-95 cursor-pointer font-black text-lg shadow-teal/30"
+          title="Take Me Home"
+          aria-label="Return to Patient Home Portal"
+        >
+          <Home className="h-6 w-6 text-white" />
+          <span>Take Me Home</span>
+        </button>
       </div>
     </Router>
   );

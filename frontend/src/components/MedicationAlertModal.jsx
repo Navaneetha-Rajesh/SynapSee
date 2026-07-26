@@ -7,7 +7,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:3000";
 
 export default function MedicationAlertModal({ medications = [], onMedicationTaken }) {
   const [activeAlertMed, setActiveAlertMed] = useState(null);

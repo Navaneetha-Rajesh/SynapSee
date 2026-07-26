@@ -17,7 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:3000";
 
 export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }) {
   const [activeGameId, setActiveGameId] = useState(null);
@@ -28,7 +28,7 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
   const [gameData, setGameData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // List of 10 Games
+  // List of 5 Games (Keeping 1, 3, 4, 6, 7 renumbered to 1-5)
   const gamesList = [
     {
       id: "photo-recall",
@@ -40,17 +40,8 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
       description: "Look at a family photo and answer Who, Where, or When it took place."
     },
     {
-      id: "memory-matching",
-      title: "2. Memory Matching",
-      subtitle: "Pair Photos & Events",
-      icon: Grid,
-      category: "Visual Memory",
-      color: "bg-teal",
-      description: "Flip cards to match family names and events to their photos."
-    },
-    {
       id: "sequencing",
-      title: "3. Life Event Sequencing",
+      title: "2. Life Event Sequencing",
       subtitle: "Chronological Order",
       icon: ListOrdered,
       category: "Executive Function",
@@ -59,7 +50,7 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     },
     {
       id: "name-the-voice",
-      title: "4. Name the Voice",
+      title: "3. Name the Voice",
       subtitle: "Familiar Voices",
       icon: Volume2,
       category: "Auditory Recall",
@@ -67,17 +58,8 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
       description: "Listen to a voice recording and identify which loved one is speaking."
     },
     {
-      id: "finish-photo",
-      title: "5. Finish the Photo",
-      subtitle: "Complete the Scene",
-      icon: Layers,
-      category: "Visual Completion",
-      color: "bg-rose-500",
-      description: "Choose the missing object to complete the party scene canvas."
-    },
-    {
       id: "continue-song",
-      title: "6. Continue the Song",
+      title: "4. Continue the Song",
       subtitle: "Lullaby & Music",
       icon: Music,
       category: "Musical Memory",
@@ -86,39 +68,12 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     },
     {
       id: "find-the-smile",
-      title: "7. Find the Smile",
+      title: "5. Find the Smile",
       subtitle: "Where's Waldo Style",
       icon: Smile,
       category: "Spatial Attention",
       color: "bg-emerald-600",
       description: "Tap directly on your family member in a group picture."
-    },
-    {
-      id: "which-room",
-      title: "8. Which Room?",
-      subtitle: "Everyday Objects",
-      icon: HelpCircle,
-      category: "Association",
-      color: "bg-orange-500",
-      description: "Match everyday objects (Teapot, Trowel) to their correct room."
-    },
-    {
-      id: "memory-flower",
-      title: "9. Memory Flower",
-      subtitle: "Uncover Clue Petals",
-      icon: Flower2,
-      category: "Progressive Recall",
-      color: "bg-pink-500",
-      description: "Tap flower petals to reveal memory hints before unveiling the photo."
-    },
-    {
-      id: "what-happened-first",
-      title: "10. What Happened First?",
-      subtitle: "Timeline Comparison",
-      icon: Clock,
-      category: "Temporal Memory",
-      color: "bg-cyan-600",
-      description: "Compare two family milestones and choose which event occurred first."
     }
   ];
 
@@ -211,7 +166,7 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
       {/* Main Area: Grid or Active Game */}
       {!activeGameId ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {gamesList.map((g) => {
+          {gamesList.slice(0, 5).map((g) => {
             const IconComp = g.icon;
             return (
               <div
@@ -291,10 +246,6 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
                 loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
                 <PhotoRecallGame gameData={gameData} memories={memories} onComplete={finishGame} />
               )}
-              {activeGameId === "memory-matching" && (
-                loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
-                <MemoryMatchingGame gameData={gameData} memories={memories} onComplete={finishGame} />
-              )}
               {activeGameId === "sequencing" && (
                 loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
                 <SequencingGame gameData={gameData} memories={memories} onComplete={finishGame} />
@@ -302,23 +253,11 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
               {activeGameId === "name-the-voice" && (
                 <NameTheVoiceGame onComplete={finishGame} />
               )}
-              {activeGameId === "finish-photo" && (
-                <FinishThePhotoGame onComplete={finishGame} />
-              )}
               {activeGameId === "continue-song" && (
                 <ContinueTheSongGame onComplete={finishGame} />
               )}
               {activeGameId === "find-the-smile" && (
                 <FindTheSmileGame onComplete={finishGame} />
-              )}
-              {activeGameId === "which-room" && (
-                <WhichRoomGame onComplete={finishGame} />
-              )}
-              {activeGameId === "memory-flower" && (
-                <MemoryFlowerGame memories={memories} onComplete={finishGame} />
-              )}
-              {activeGameId === "what-happened-first" && (
-                <WhatHappenedFirstGame memories={memories} onComplete={finishGame} />
               )}
             </>
           )}
@@ -372,62 +311,7 @@ function PhotoRecallGame({ gameData, memories, onComplete }) {
   );
 }
 
-// ====================================================
-// SUB-GAME 2: Memory Matching Pairs
-// ====================================================
-function MemoryMatchingGame({ gameData, memories, onComplete }) {
-  const defaultItems = [
-    { id: 1, content: "Munnar Trip", pairId: "A" },
-    { id: 2, content: "☕ Hot Chai", pairId: "A" },
-    { id: 3, content: "Wedding Day", pairId: "B" },
-    { id: 4, content: "💍 St. Mary's", pairId: "B" }
-  ];
-  const items = gameData?.items || defaultItems;
-  const [flipped, setFlipped] = useState([]);
-  const [matched, setMatched] = useState([]);
 
-  const handleCardClick = (card) => {
-    if (flipped.length === 2 || flipped.includes(card.id) || matched.includes(card.id)) return;
-    const newFlipped = [...flipped, card.id];
-    setFlipped(newFlipped);
-
-    if (newFlipped.length === 2) {
-      const card1 = items.find(i => i.id === newFlipped[0]);
-      const card2 = items.find(i => i.id === newFlipped[1]);
-
-      if (card1.pairId === card2.pairId) {
-        setMatched([...matched, card1.id, card2.id]);
-        setFlipped([]);
-        if (matched.length + 2 === items.length) {
-          setTimeout(() => onComplete(2, 0), 1000);
-        }
-      } else {
-        setTimeout(() => setFlipped([]), 1200);
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-6 text-center max-w-md mx-auto">
-      <h3 className="text-2xl font-black text-navy">Match Related Memory Pairs</h3>
-      <div className="grid grid-cols-2 gap-4">
-        {items.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => handleCardClick(card)}
-            className={`h-28 rounded-2xl font-black text-lg border-4 transition flex items-center justify-center cursor-pointer shadow-md ${
-              flipped.includes(card.id) || matched.includes(card.id)
-                ? "bg-teal text-white border-teal"
-                : "bg-navy text-skyblue border-skyblue hover:bg-navy/90"
-            }`}
-          >
-            {flipped.includes(card.id) || matched.includes(card.id) ? card.content : "❓ Flip Card"}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ====================================================
 // SUB-GAME 3: Life Event Sequencing
@@ -522,42 +406,6 @@ function NameTheVoiceGame({ onComplete }) {
 }
 
 // ====================================================
-// SUB-GAME 5: Finish the Photo
-// ====================================================
-function FinishThePhotoGame({ onComplete }) {
-  const [selected, setSelected] = useState(null);
-
-  const handleChoose = (item) => {
-    setSelected(item);
-    const isCorrect = item === "🎂 Birthday Cake";
-    setTimeout(() => onComplete(isCorrect ? 1 : 0, isCorrect ? 0 : 1), 1000);
-  };
-
-  return (
-    <div className="space-y-6 text-center max-w-lg mx-auto">
-      <h3 className="text-2xl font-black text-navy">Select the missing item on the table</h3>
-      <div className="relative aspect-[16/9] rounded-2xl overflow-hidden border-4 border-skyblue bg-navy/10 flex items-center justify-center">
-        <img src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=800" alt="Party scene" className="w-full h-full object-cover" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-alert text-white border-2 border-white px-4 py-2 rounded-2xl font-black text-lg shadow-xl animate-pulse">
-          {selected ? selected : "❓ MISSING ITEM HERE"}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        {["🎂 Birthday Cake", "🚗 Red Car", "🐶 Golden Retriever"].map((opt) => (
-          <button
-            key={opt}
-            onClick={() => handleChoose(opt)}
-            className="bg-skysoft hover:bg-skyblue border-2 border-skyblue text-navy font-black py-4 rounded-2xl text-sm cursor-pointer"
-          >
-            {opt}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ====================================================
 // SUB-GAME 6: Continue the Song
 // ====================================================
 function ContinueTheSongGame({ onComplete }) {
@@ -611,93 +459,6 @@ function FindTheSmileGame({ onComplete }) {
   );
 }
 
-// ====================================================
-// SUB-GAME 8: Which Room?
-// ====================================================
-function WhichRoomGame({ onComplete }) {
-  return (
-    <div className="space-y-6 text-center max-w-md mx-auto">
-      <h3 className="text-2xl font-black text-navy">Where does a Teapot belong? 🫖</h3>
-      <div className="grid grid-cols-2 gap-4">
-        {["Kitchen", "Bedroom", "Garden", "Living Room"].map((room) => (
-          <button
-            key={room}
-            onClick={() => onComplete(room === "Kitchen" ? 1 : 0, room === "Kitchen" ? 0 : 1)}
-            className="bg-skysoft hover:bg-skyblue border-2 border-skyblue text-navy font-black py-5 rounded-2xl text-lg cursor-pointer"
-          >
-            {room}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-// ====================================================
-// SUB-GAME 9: Memory Flower
-// ====================================================
-function MemoryFlowerGame({ memories, onComplete }) {
-  const [petals, setPetals] = useState([false, false, false, false, false, false]);
 
-  const togglePetal = (idx) => {
-    const arr = [...petals];
-    arr[idx] = true;
-    setPetals(arr);
 
-    if (arr.every(Boolean)) {
-      setTimeout(() => onComplete(1, 0), 1200);
-    }
-  };
-
-  return (
-    <div className="space-y-6 text-center max-w-lg mx-auto">
-      <h3 className="text-2xl font-black text-navy">Tap all 6 petals to unveil the hidden memory!</h3>
-      <div className="grid grid-cols-3 gap-4 py-4">
-        {petals.map((revealed, idx) => (
-          <button
-            key={idx}
-            onClick={() => togglePetal(idx)}
-            className={`h-24 rounded-2xl font-black text-sm border-4 transition flex flex-col items-center justify-center cursor-pointer shadow ${
-              revealed ? "bg-teal text-white border-teal" : "bg-pink-500 text-white border-pink-400 hover:scale-105"
-            }`}
-          >
-            <Flower2 className="h-6 w-6 mb-1" />
-            <span>{revealed ? `Hint #${idx + 1}` : "Tap Petal"}</span>
-          </button>
-        ))}
-      </div>
-      {petals.every(Boolean) && (
-        <div className="p-4 bg-teal/10 rounded-2xl border-2 border-teal font-black text-navy">
-          🎉 Memory Unveiled: Family Trip to Munnar!
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ====================================================
-// SUB-GAME 10: What Happened First?
-// ====================================================
-function WhatHappenedFirstGame({ memories, onComplete }) {
-  return (
-    <div className="space-y-6 text-center max-w-lg mx-auto">
-      <h3 className="text-2xl font-black text-navy">Which event happened first?</h3>
-      <div className="grid grid-cols-2 gap-6">
-        <button
-          onClick={() => onComplete(1, 0)}
-          className="bg-skysoft hover:bg-teal hover:text-white border-4 border-skyblue rounded-3xl p-6 font-black text-xl space-y-3 cursor-pointer shadow-md transition"
-        >
-          <span className="text-3xl block">💍</span>
-          <span>Our Wedding Day (1975)</span>
-        </button>
-        <button
-          onClick={() => onComplete(0, 1)}
-          className="bg-skysoft hover:bg-teal hover:text-white border-4 border-skyblue rounded-3xl p-6 font-black text-xl space-y-3 cursor-pointer shadow-md transition"
-        >
-          <span className="text-3xl block">🍵</span>
-          <span>Munnar Trip (2018)</span>
-        </button>
-      </div>
-    </div>
-  );
-}

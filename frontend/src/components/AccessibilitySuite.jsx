@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 
 export default function AccessibilitySuite({ isMuted, setIsMuted }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [fontSize, setFontSize] = useState('medium'); // small, medium, large, xl
-  const [highContrast, setHighContrast] = useState(false);
-  const [dyslexicFont, setDyslexicFont] = useState(false);
-  const [rulerActive, setRulerActive] = useState(false);
+   const [isOpen, setIsOpen] = useState(false);
+  const [fontSize, setFontSize] = useState(() => localStorage.getItem('synapsee_font_size') || 'medium'); // small, medium, large, xl
+  const [highContrast, setHighContrast] = useState(() => localStorage.getItem('synapsee_high_contrast') === 'true');
+  const [dyslexicFont, setDyslexicFont] = useState(() => localStorage.getItem('synapsee_dyslexic_font') === 'true');
+  const [rulerActive, setRulerActive] = useState(() => localStorage.getItem('synapsee_ruler_active') === 'true');
   const [rulerY, setRulerY] = useState(200);
 
   // Apply Font Size
@@ -29,6 +29,7 @@ export default function AccessibilitySuite({ isMuted, setIsMuted }) {
     else if (fontSize === 'medium') root.style.setProperty('--app-font-scale', '1');
     else if (fontSize === 'large') root.style.setProperty('--app-font-scale', '1.25');
     else if (fontSize === 'xl') root.style.setProperty('--app-font-scale', '1.5');
+    localStorage.setItem('synapsee_font_size', fontSize);
   }, [fontSize]);
 
   // Apply High Contrast Mode
@@ -38,6 +39,7 @@ export default function AccessibilitySuite({ isMuted, setIsMuted }) {
     } else {
       document.body.classList.remove('high-contrast-mode');
     }
+    localStorage.setItem('synapsee_high_contrast', String(highContrast));
   }, [highContrast]);
 
   // Apply Dyslexic Font
@@ -47,6 +49,7 @@ export default function AccessibilitySuite({ isMuted, setIsMuted }) {
     } else {
       document.body.classList.remove('opendyslexic-font');
     }
+    localStorage.setItem('synapsee_dyslexic_font', String(dyslexicFont));
   }, [dyslexicFont]);
 
   // Handle Reading Ruler Mouse Tracking
@@ -56,6 +59,7 @@ export default function AccessibilitySuite({ isMuted, setIsMuted }) {
         setRulerY(e.clientY);
       }
     };
+    localStorage.setItem('synapsee_ruler_active', String(rulerActive));
 
     if (rulerActive) {
       window.addEventListener('mousemove', handleMouseMove);
