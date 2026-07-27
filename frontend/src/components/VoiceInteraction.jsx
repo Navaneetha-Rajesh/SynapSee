@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, Volume2, Sparkles, AlertTriangle, Send, Keyboard } from 'lucide-react';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -11,11 +11,30 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [speechActive, setSpeechActive] = useState(false);
   const [hesitationScore, setHesitationScore] = useState(null);
+  const [textInput, setTextInput] = useState("");
+  const [showKeyboard, setShowKeyboard] = useState(!SpeechRecognition);
   const recognitionRef = useRef(null);
 
-  // Initialize Speech Recognition
+  // Reset interaction state on memory change (only when memory ID changes!)
   useEffect(() => {
-    if (SpeechRecognition) {
+    setTranscript("");
+    setResponseMsg("");
+    setErrorMsg("");
+    setHesitationScore(null);
+    setTextInput("");
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
+    setRecording(false);
+  }, [currentMemory?.id]);
+
+  const startListening = () => {
+    if (!SpeechRecognition) return;
+    
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    
+    try {
       const rec = new SpeechRecognition();
       rec.continuous = false;
       rec.interimResults = false;
@@ -24,18 +43,21 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
       rec.onstart = () => {
         setRecording(true);
         setErrorMsg("");
+        setTranscript("");
       };
 
       rec.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        setTranscript(text);
-        submitToN8N(text);
+        if (event.results && event.results[0]) {
+          const text = event.results[0][0].transcript;
+          setTranscript(text);
+          submitToN8N(text);
+        }
       };
 
       rec.onerror = (e) => {
         console.error("Speech recognition error:", e);
         if (e.error !== 'no-speech') {
-          setErrorMsg(`Error: ${e.error}. Please check your microphone permissions.`);
+          setErrorMsg(`Microphone error: ${e.error}. Try typing instead!`);
         }
         setRecording(false);
       };
@@ -45,26 +67,10 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
       };
 
       recognitionRef.current = rec;
-    }
-  }, []);
-
-  // Reset interaction state on memory change
-  useEffect(() => {
-    setTranscript("");
-    setResponseMsg("");
-    setErrorMsg("");
-    setHesitationScore(null);
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-  }, [currentMemory]);
-
-  const startListening = () => {
-    if (recognitionRef.current) {
-      try {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-        recognitionRef.current.start();
-      } catch (err) {
-        console.warn("Recognition already started:", err);
-      }
+      rec.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setErrorMsg("Failed to start microphone. Please try again.");
     }
   };
 
@@ -76,6 +82,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
   };
 
   const submitToN8N = async (textStr) => {
+    if (!textStr.trim()) return;
     setLoading(true);
     setResponseMsg("");
     setErrorMsg("");
@@ -97,7 +104,6 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
       speakText(reply);
     } catch (err) {
       console.warn("n8n offline, using fallback response:", err);
-      // Friendly local fallback
       const fallbackReplies = [
         "That sounds beautiful! I recall it was a lovely and memorable experience.",
         "Oh, how wonderful! Do you remember who went with you on that special day?",
@@ -111,29 +117,25 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
     }
   };
 
+  const handleKeyboardSubmit = (e) => {
+    e.preventDefault();
+    if (!textInput.trim()) return;
+    setTranscript(textInput);
+    submitToN8N(textInput);
+    setTextInput("");
+  };
+
   const speakText = (text) => {
     if ('speechSynthesis' in window && !isMuted) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9; // Slightly slower for elderly readability
+      utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.onstart = () => setSpeechActive(true);
       utterance.onend = () => setSpeechActive(false);
       window.speechSynthesis.speak(utterance);
     }
   };
-
-  if (!SpeechRecognition) {
-    return (
-      <div className="bg-alert/10 border-2 border-alert/20 p-6 rounded-3xl text-center space-y-3 max-w-lg mx-auto">
-        <AlertTriangle className="h-10 w-10 text-alert mx-auto" />
-        <h4 className="font-black text-navy text-lg">Speech Recognition Not Supported</h4>
-        <p className="text-navy/70 text-sm">
-          Your browser does not support the native Web Speech API. For the best experience, please use **Google Chrome** or **Microsoft Edge**.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-3xl p-8 shadow-md border-2 border-skyblue text-center space-y-6">
@@ -144,22 +146,61 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
         </p>
       </div>
 
-      <div className="flex flex-col items-center justify-center py-4 space-y-4">
-        <button
-          onClick={recording ? stopListening : startListening}
-          className={`h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${
-            recording
-              ? 'bg-alert text-white animate-pulse ring-8 ring-alert/30'
-              : 'bg-navy hover:bg-teal text-white ring-8 ring-navy/10'
-          }`}
-          aria-label={recording ? "Stop Recording" : "Start Recording"}
-        >
-          {recording ? <MicOff className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
-        </button>
-        <span className="text-teal font-black text-lg">
-          {recording ? "🛑 Listening... Tap to Stop" : "🎤 Tap to Speak"}
-        </span>
-      </div>
+      {!showKeyboard ? (
+        // Voice Mode
+        <div className="flex flex-col items-center justify-center py-4 space-y-4">
+          <button
+            onClick={recording ? stopListening : startListening}
+            className={`h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-xl cursor-pointer ${
+              recording
+                ? 'bg-alert text-white animate-pulse ring-8 ring-alert/30'
+                : 'bg-navy hover:bg-teal text-white ring-8 ring-navy/10'
+            }`}
+            aria-label={recording ? "Stop Recording" : "Start Recording"}
+          >
+            {recording ? <MicOff className="h-10 w-10" /> : <Mic className="h-10 w-10" />}
+          </button>
+          <span className="text-teal font-black text-lg">
+            {recording ? "🛑 Listening... Tap to Stop" : "🎤 Tap to Speak"}
+          </span>
+          <button
+            onClick={() => setShowKeyboard(true)}
+            className="text-xs font-black text-navy/60 hover:text-teal transition flex items-center gap-1.5 cursor-pointer pt-1"
+          >
+            <Keyboard className="h-4 w-4" />
+            <span>Type response instead</span>
+          </button>
+        </div>
+      ) : (
+        // Keyboard Fallback Mode
+        <div className="max-w-xl mx-auto space-y-4">
+          <form onSubmit={handleKeyboardSubmit} className="flex gap-3">
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              placeholder="Type your memory here..."
+              className="flex-grow px-5 py-4 bg-skysoft border-2 border-skyblue rounded-2xl text-lg font-bold text-navy focus:outline-none focus:border-teal placeholder-navy/40"
+            />
+            <button
+              type="submit"
+              className="bg-teal hover:bg-teal/90 text-white font-black px-6 py-4 rounded-2xl shadow-md transition flex items-center gap-2 cursor-pointer"
+            >
+              <Send className="h-5 w-5" />
+              <span>Send</span>
+            </button>
+          </form>
+          {SpeechRecognition && (
+            <button
+              onClick={() => setShowKeyboard(false)}
+              className="text-xs font-black text-navy/60 hover:text-teal transition flex items-center gap-1.5 cursor-pointer mx-auto"
+            >
+              <Mic className="h-4 w-4" />
+              <span>Switch to Voice Input</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {errorMsg && (
         <div className="text-alert font-bold text-sm bg-alert/5 p-3 rounded-xl border border-alert/20 max-w-md mx-auto">
@@ -169,7 +210,7 @@ export default function VoiceInteraction({ currentMemory, isMuted }) {
 
       {transcript && (
         <div className="bg-skysoft border border-skyblue p-5 rounded-2xl max-w-xl mx-auto text-left">
-          <span className="text-xs font-black text-teal block mb-1">YOUR SPOKEN RESPONSE:</span>
+          <span className="text-xs font-black text-teal block mb-1">YOUR RESPONSE:</span>
           <p className="text-navy font-bold text-lg italic">"{transcript}"</p>
         </div>
       )}
