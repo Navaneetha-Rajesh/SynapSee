@@ -2,6 +2,8 @@
 
 SynapSee is a modern, production-grade dual-portal cognitive care and memory reminiscence platform built to support seniors living with early-stage dementia or mild cognitive impairment, while providing real-time compliance oversight, alerts, and analytics to caregivers.
 
+📺 **[Watch the Demo Video](https://drive.google.com/file/d/1jOhyAWkJW1ERveMtoN7I_YqCkTUdNET8/view?usp=drive_link)**
+
 ---
 
 ## 🚀 Key Features
