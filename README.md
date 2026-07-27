@@ -1,85 +1,62 @@
-# KinKeep
+# SynapSee
 
-KinKeep is a modern, production-grade dual-interface cognitive health and memory vault platform for seniors and caregivers. It helps elderly adults (specifically those experiencing mild cognitive impairment or dementia) preserve their legacy and engage in warm, nostalgia-driven conversations using Google Gemini 1.5 Flash, while providing caregivers with real-time anomaly alerts, routine compliance tracking, and memory vault management.
+SynapSee is a modern, production-grade dual-portal cognitive care and memory reminiscence platform built to support seniors living with early-stage dementia or mild cognitive impairment, while providing real-time compliance oversight, alerts, and analytics to caregivers.
 
 ---
 
 ## 🚀 Key Features
 
 ### 1. Senior/Patient Portal
-- **Memory Spotlight Card**: High-contrast, clean visual focal point displaying genuine family memories, dates, and locations.
-- **One-Tap Voice Control**: An accessible, pulsing 80px x 80px mic button designed for elderly motor accessibility.
-- **Voice Transcription Pipeline**: Translates audio speech to text using `faster-whisper` on FastAPI, with automatic fallback to Gemini 1.5 Flash's native audio model.
-- **Warm Reassurance (Gemini 1.5 Flash)**: Generates nostalgic, cognitive-focused, 2-3 sentence prompts to guide memory recollection gently.
-- **Text-to-Speech (TTS)**: Built-in voice playback utilizing native browser speech synthesis so the senior can hear replies spoken aloud.
-- **Reminders Dock**: High-visibility pill and routine tracking indicator.
+- **Memory Spotlight Card**: High-contrast, clean visual focal point displaying genuine family memories, dates, and locations synced directly from Supabase.
+- **One-Tap Voice Control**: An accessible, pulsing microphone button using browser native Web Speech API for real-time speech recognition and text-to-speech companion feedback.
+- **Medication Routine Dock**: High-visibility pill and routine tracking indicators showing today's schedule, with direct confirmation logging to the database.
+- **Mandatory Reminder Popups**: accessible popup alerts for pending medicines with built-in 15-minute Snooze controls.
 
 ### 2. Caregiver Dashboard
-- **Patient Selector & Metrics Bar**: Live tracking of engagement rates, checklist compliance, and active alerts.
-- **Memory Vault Manager**: Drag-and-drop simulated file dropzone to upload photos, input metadata (dates/locations), and review uploaded memories.
-- **Engagement Tracker**: Visual feedback of historical conversation recall scores and a chronological activity log.
-- **Routine & Medication Log**: Live checklist to check off daily tasks (updates state and backend).
-- **Smart Alerts Panel**: Displays warning anomalies (e.g. Speech hesitation detected by Gemini, routine deviations) with one-click phone dialer and dismissal.
+- **Caregiver Digest AI Insights**: Real-time AI cognitive summaries, speech hesitation trends, and medication adherence metrics synthesized via local Ollama and n8n models.
+- **Memory Vault Manager**: Form controls to upload images, input locations, dates, tags, and complete full CRUD actions (Add, Edit, Delete) directly on the Supabase database.
+- **Medication Management CRUD Panel**: Full CRUD interface for caretaker routine setup, allowing adding, editing, and deleting medications.
+- **Interactive Game Analytics**: Panel charting total games played, accuracy logs, and latest session details.
 
 ---
 
-## 🎨 Color Palette & Design
-- **Primary Navy (`#2F4156`)**: Background, hero blocks, primary buttons, headers.
-- **Accent Teal (`#567C8D`)**: Borders, active highlights, subheaders, secondary buttons.
-- **Sky Blue (`#C8D9E6`)**: Secondary containers, tags, muted backgrounds.
-- **Sky Soft (`#F0F5F9`)**: Patient card surfaces and clean page tints.
-- **White (`#FFFFFF`)**: Pure white card surfaces.
-- **Coral Alert (`#E76F51`)**: Target highlighted warnings and anomaly widgets.
+## 🛠️ Core Technology Stack & Architecture
+
+- **Frontend**: React (Vite bundler), Tailwind CSS, Lucide Icons, native Web Speech API.
+- **Backend Proxy**: Node.js Express server (TypeScript).
+- **Database Storage**: Supabase Database REST API (real-time data layer).
+- **AI Automation & Orchestration**: Local n8n Workflow Engine.
+- **Local Large Language Model**: Ollama running llama3 / mistral for real-time speech evaluation, cognitive diagnostics, and caregiver summary synthesis.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
-
-### Backend: FastAPI
-- **Language**: Python 3.9+ / 3.11+
-- **Speech Engine**: `faster-whisper` (CTranslate2) or Gemini 1.5 Flash API fallback.
-- **LLM Engine**: Google Gemini 1.5 Flash (`google-genai` SDK) utilizing structured JSON response schema mapping.
-- **Database integration**: Supabase Python SDK Client.
-
-### Frontend: React
-- **Bundler**: Vite (ES6)
-- **Styling**: Tailwind CSS v4 (configured via Vite plugin and `@theme` CSS directives).
-- **Routing**: `react-router-dom` (Hash Routing for local setup compatibility).
-- **Icons**: Lucide Icons (`lucide-react`).
-
----
-
-## 📦 Getting Started
+## 📦 Getting Started & Setup
 
 ### Prerequisites
-- Python 3.9+ installed.
 - Node.js (v18+) and npm installed.
-- A Gemini API Key from Google AI Studio.
+- Ollama installed locally.
+- n8n installed locally.
 
 ### Backend Installation & Run
 1. Navigate to the backend directory:
    ```bash
    cd backend
    ```
-2. Create and activate a virtual environment:
+2. Install dependencies:
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
+   npm install
    ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+3. Set your environment variables in `.env`:
+   ```env
+   SUPABASE_URL=https://xuprrsbzcikdakyetsfh.supabase.co
+   SUPABASE_ANON_KEY=sb_publishable_WvpPiNVC5P7EKpIT3XqRwg_8JtAgCYr
+   N8N_LOCAL_WEBHOOK_URL=http://localhost:5678/webhook
+   PORT=3000
    ```
-4. Set your environment variables:
+4. Build and start the server:
    ```bash
-   export GEMINI_API_KEY="your-gemini-api-key-here"
-   # Optional Supabase credentials:
-   # export SUPABASE_URL="your-supabase-url"
-   # export SUPABASE_KEY="your-supabase-anon-key"
-   ```
-5. Run the FastAPI development server:
-   ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   npm run build
+   npm run start
    ```
 
 ### Frontend Installation & Run
@@ -95,7 +72,7 @@ KinKeep is a modern, production-grade dual-interface cognitive health and memory
    ```bash
    npm run dev
    ```
-4. Open your browser and navigate to [http://localhost:5173](http://localhost:5173).
+4. Open your browser and navigate to `http://localhost:5173`.
 
 ---
 

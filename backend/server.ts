@@ -86,7 +86,9 @@ app.post(['/api/v1/memories', '/api/memories'], async (req, res) => {
     location: req.body.location,
     image_url: req.body.image_url || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800",
     description: req.body.description,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    people_tags: req.body.people_tags || ["Family"],
+    user_id: req.body.user_id || "user-eleanor"
   };
 
   if (isSupabaseActive()) {

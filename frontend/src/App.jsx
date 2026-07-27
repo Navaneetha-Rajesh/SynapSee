@@ -45,6 +45,81 @@ import CognitiveGamesHub from './components/CognitiveGamesHub';
 import VoiceInteraction from './components/VoiceInteraction';
 
 const API_BASE = "http://localhost:3000";
+const SUPABASE_URL = "https://xuprrsbzcikdakyetsfh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_WvpPiNVC5P7EKpIT3XqRwg_8JtAgCYr";
+
+const fetchMemoriesDirect = async () => {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?select=*`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      return data.map(m => ({
+        id: m.id,
+        patient_id: m.patient_id,
+        user_id: m.patient_id || m.user_id,
+        title: m.title || "",
+        description: m.description || m.content || "",
+        image_url: m.media_url || m.photo_url || "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800",
+        date: m.memory_date || m.date || "2026",
+        location: m.location || "Home",
+        people_tags: Array.isArray(m.tags) ? m.tags : (m.tags ? m.tags.split(",") : ["Family"])
+      }));
+    }
+  } catch (e) {
+    console.warn("Supabase direct fetch offline:", e);
+  }
+  return null;
+};
+
+const fetchMedicationsDirect = async (patientId) => {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/medications?patient_id=eq.${patientId}`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      return data;
+    }
+  } catch (e) {
+    console.warn("Supabase medications fetch offline:", e);
+  }
+  return [];
+};
+
+const fetchMedicationLogsDirect = async (patientId) => {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/medication_logs?patient_id=eq.${patientId}`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      return data;
+    }
+  } catch (e) {
+    console.warn("Supabase logs fetch offline:", e);
+  }
+  return [];
+};
+
+const isToday = (dateStr) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const today = new Date();
+  return d.getDate() === today.getDate() &&
+         d.getMonth() === today.getMonth() &&
+         d.getFullYear() === today.getFullYear();
+};
 
 // Global navigation bar
 function Navigation() {
@@ -412,6 +487,9 @@ function PatientInterface({ isMuted, setIsMuted }) {
   const [memories, setMemories] = useState(globalMemories);
   const [currentIdx, setCurrentIdx] = useState(globalActiveMemoryIdx);
   const [medications, setMedications] = useState([]);
+  const [todayLogs, setTodayLogs] = useState([]);
+
+  const patientId = "11111111-1111-1111-1111-111111111111";
 
   // Search & Tag Filter for Memory Vault Grid
   const [searchQuery, setSearchQuery] = useState("");
@@ -426,9 +504,8 @@ function PatientInterface({ isMuted, setIsMuted }) {
 
     const syncTimer = setInterval(async () => {
       try {
-        const memRes = await fetch(`${API_BASE}/api/memories`);
-        const mems = await memRes.json();
-        if (Array.isArray(mems) && mems.length > 0) {
+        const mems = await fetchMemoriesDirect();
+        if (mems) {
           setMemories(mems);
           globalMemories = mems;
         }
@@ -436,13 +513,19 @@ function PatientInterface({ isMuted, setIsMuted }) {
         const spotRes = await fetch(`${API_BASE}/api/spotlight`);
         const spotData = await spotRes.json();
         const spotId = spotData.activeId;
-        if (spotId && Array.isArray(mems)) {
+        if (spotId && mems) {
           const idx = mems.findIndex(m => m.id === spotId);
           if (idx !== -1) {
             setCurrentIdx(idx);
             globalActiveMemoryIdx = idx;
           }
         }
+
+        const meds = await fetchMedicationsDirect(patientId);
+        setMedications(meds);
+
+        const logs = await fetchMedicationLogsDirect(patientId);
+        setTodayLogs(logs);
       } catch (e) {
         console.warn("Offline sync memories / spotlight:", e);
       }
@@ -456,18 +539,17 @@ function PatientInterface({ isMuted, setIsMuted }) {
 
   const fetchData = async () => {
     try {
-      const memRes = await fetch(`${API_BASE}/api/memories`);
-      const mems = await memRes.json();
-      if (Array.isArray(mems) && mems.length > 0) {
+      const mems = await fetchMemoriesDirect();
+      if (mems) {
         setMemories(mems);
         globalMemories = mems;
       }
 
-      const medRes = await fetch(`${API_BASE}/api/v1/medications`);
-      const meds = await medRes.json();
-      if (Array.isArray(meds)) {
-        setMedications(meds);
-      }
+      const meds = await fetchMedicationsDirect(patientId);
+      setMedications(meds);
+
+      const logs = await fetchMedicationLogsDirect(patientId);
+      setTodayLogs(logs);
     } catch (e) {
       console.error("Using local fallback memory data.", e);
     }
@@ -585,9 +667,39 @@ function PatientInterface({ isMuted, setIsMuted }) {
     globalActiveMemoryIdx = nextIdx;
   };
 
-  const handleMedicationTaken = (medId, takenAt) => {
-    setMedications(prev => (Array.isArray(prev) ? prev : []).map(m => m.id === medId ? { ...m, taken_status: "taken", taken_at: takenAt } : m));
+  const handleMedicationTaken = async (medId) => {
+    const nowIso = new Date().toISOString();
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/medication_logs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          medication_id: medId,
+          patient_id: patientId,
+          status: "taken",
+          taken_at: nowIso,
+          logged_at: nowIso
+        })
+      });
+      const logs = await fetchMedicationLogsDirect(patientId);
+      setTodayLogs(logs);
+    } catch (e) {
+      console.warn("Failed to persist taken log directly to Supabase:", e);
+    }
   };
+
+  const mappedMedications = (Array.isArray(medications) ? medications : []).map(med => {
+    const log = todayLogs.find(l => l.medication_id === med.id && l.status === 'taken');
+    return {
+      ...med,
+      taken_status: log ? "taken" : "pending",
+      taken_at: log ? log.taken_at : null
+    };
+  });
 
   // Filter Memories in Vault
   const filteredMemories = safeMemories.filter(m => {
@@ -638,47 +750,97 @@ function PatientInterface({ isMuted, setIsMuted }) {
       </div>
 
       {/* 2. Medication Reminder Dock & Mandatory Alert Modal */}
-      <MedicationAlertModal medications={Array.isArray(medications) ? medications : []} onMedicationTaken={handleMedicationTaken} />
+      <MedicationAlertModal medications={mappedMedications} todayLogs={todayLogs} onMarkTaken={handleMedicationTaken} />
 
-      {/* 3. Memory Spotlight Card */}
-      <div className="bg-white rounded-3xl p-6 shadow-md border-2 border-skyblue flex flex-col md:flex-row gap-6">
-        <div className="flex-1 aspect-[4/3] rounded-2xl overflow-hidden border-2 border-skyblue relative bg-skysoft">
-          <img
-            src={currentMemory?.image_url || currentMemory?.photo_url || globalMemories[0].image_url}
-            alt={currentMemory?.title || "Memory photo"}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute top-4 left-4 bg-navy text-white px-4 py-2 rounded-xl text-md font-extrabold shadow flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-skyblue" />
-            <span>{currentMemory?.location || "Memory"} • {currentMemory?.date || "Past"}</span>
+      {/* 3. Memory Spotlight Card & Medication Reminder Dock */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Spotlight Card */}
+        <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-md border-2 border-skyblue flex flex-col md:flex-row gap-6">
+          <div className="flex-1 aspect-[4/3] rounded-2xl overflow-hidden border-2 border-skyblue relative bg-skysoft">
+            <img
+              src={currentMemory?.image_url || currentMemory?.photo_url || (globalMemories && globalMemories[0]?.image_url) || "https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800"}
+              alt={currentMemory?.title || "Memory photo"}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-4 left-4 bg-navy text-white px-4 py-2 rounded-xl text-md font-extrabold shadow flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-skyblue" />
+              <span>{currentMemory?.location || "Memory"} • {currentMemory?.date || "Past"}</span>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-between text-left space-y-4">
+            <div className="space-y-3">
+              <span className="text-teal font-extrabold tracking-wider text-xs uppercase bg-teal/10 px-3 py-1 rounded-full">Featured Memory Spotlight</span>
+              <h2 className="text-3xl font-black text-navy leading-tight">{currentMemory?.title || "Family Memory"}</h2>
+              <p className="text-navy/80 text-lg leading-relaxed">{currentMemory?.description || "A special memory."}</p>
+              {Array.isArray(currentMemory?.people_tags) && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {currentMemory.people_tags.map(t => (
+                    <span key={t} className="bg-skysoft text-teal border border-skyblue px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={nextMemory}
+              className="mt-4 bg-skyblue hover:bg-skyblue/80 text-navy font-black py-3.5 px-6 rounded-2xl border border-teal/20 transition self-start flex items-center gap-2 text-md min-h-[48px] cursor-pointer"
+            >
+              <span>Next Photo</span>
+              <ArrowRight className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col justify-between text-left space-y-4">
-          <div className="space-y-3">
-            <span className="text-teal font-extrabold tracking-wider text-xs uppercase bg-teal/10 px-3 py-1 rounded-full">Featured Memory Spotlight</span>
-            <h2 className="text-3xl font-black text-navy leading-tight">{currentMemory?.title || "Family Memory"}</h2>
-            <p className="text-navy/80 text-lg leading-relaxed">{currentMemory?.description || "A special memory."}</p>
-            {Array.isArray(currentMemory?.people_tags) && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {currentMemory.people_tags.map(t => (
-                  <span key={t} className="bg-skysoft text-teal border border-skyblue px-2.5 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                    <Tag className="h-3 w-3" />
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Medication Reminder & Daily Routine Dock */}
+        <div className="bg-white rounded-3xl p-6 shadow-md border-2 border-skyblue flex flex-col justify-between space-y-4">
+          <div className="space-y-4 w-full">
+            <div className="flex items-center gap-2 border-b border-skyblue pb-3">
+              <Calendar className="h-6 w-6 text-teal" />
+              <h3 className="text-xl font-black text-navy">Today's Routine & Meds</h3>
+            </div>
+            
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              {mappedMedications.length === 0 ? (
+                <p className="text-navy/60 text-sm italic py-4 text-center">No medications scheduled for today.</p>
+              ) : (
+                mappedMedications.map((med) => (
+                  <div key={med.id} className="p-3 bg-skysoft rounded-2xl border border-skyblue flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-full shrink-0 ${med.taken_status === "taken" ? "bg-teal" : "bg-alert animate-pulse"}`} />
+                      <div className="text-left">
+                        <p className={`font-black text-sm text-navy ${med.taken_status === "taken" ? "line-through text-navy/40" : ""}`}>
+                          {med.med_name}
+                        </p>
+                        <span className="text-[10px] font-extrabold text-teal uppercase block mt-0.5">
+                          {med.scheduled_time} • {med.dosage}
+                        </span>
+                      </div>
+                    </div>
 
-          <button
-            onClick={nextMemory}
-            className="mt-4 bg-skyblue hover:bg-skyblue/80 text-navy font-black py-3.5 px-6 rounded-2xl border border-teal/20 transition self-start flex items-center gap-2 text-md min-h-[48px] cursor-pointer"
-          >
-            <span>Next Photo</span>
-            <ArrowRight className="h-5 w-5" />
-          </button>
+                    {med.taken_status !== "taken" ? (
+                      <button
+                        onClick={() => handleMedicationTaken(med.id)}
+                        className="bg-teal hover:bg-teal/90 text-white font-black text-xs py-2 px-3 rounded-xl shadow transition shrink-0 cursor-pointer"
+                      >
+                        Take
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-black text-teal uppercase bg-teal/10 px-2 py-1 rounded-lg border border-teal/20 shrink-0">
+                        Taken
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
+
       </div>
 
       {/* 4. Dialogue Section & Microphone */}
@@ -782,6 +944,24 @@ function CaregiverDashboard() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [digestData, setDigestData] = useState(null);
 
+  // Memory Editing State
+  const [editingMemoryId, setEditingMemoryId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editPeople, setEditPeople] = useState("");
+
+  // Medication Manager State
+  const [showMedModal, setShowMedModal] = useState(false);
+  const [editingMedId, setEditingMedId] = useState(null);
+  const [medName, setMedName] = useState("");
+  const [medDosage, setMedDosage] = useState("");
+  const [medTime, setMedTime] = useState("");
+  const [medRemarks, setMedRemarks] = useState("");
+  const [medImg, setMedImg] = useState("");
+  const [medError, setMedError] = useState("");
+
   const parseDigest = (rawOutput) => {
     if (!rawOutput) return null;
     try {
@@ -810,16 +990,24 @@ function CaregiverDashboard() {
       const alertData = await alertRes.json();
       if (Array.isArray(alertData)) setAlerts(alertData);
 
-      const memRes = await fetch(`${API_BASE}/api/memories`);
-      const memData = await memRes.json();
-      if (Array.isArray(memData) && memData.length > 0) {
-        setMemories(memData);
-        globalMemories = memData;
+      const mems = await fetchMemoriesDirect();
+      if (mems) {
+        setMemories(mems);
+        globalMemories = mems;
       }
 
-      const medRes = await fetch(`${API_BASE}/api/v1/medications`);
-      const medData = await medRes.json();
-      if (Array.isArray(medData)) setMedications(medData);
+      const dbPatientId = "11111111-1111-1111-1111-111111111111";
+      const meds = await fetchMedicationsDirect(dbPatientId);
+      const logs = await fetchMedicationLogsDirect(dbPatientId);
+      const mappedMeds = meds.map(m => {
+        const log = logs.find(l => l.medication_id === m.id && isToday(l.logged_at));
+        return {
+          ...m,
+          taken_status: log ? log.status : "pending",
+          taken_at: log ? log.taken_at : null
+        };
+      });
+      setMedications(mappedMeds);
 
       const logRes = await fetch(`${API_BASE}/api/v1/game-logs`);
       const logData = await logRes.json();
@@ -902,18 +1090,27 @@ function CaregiverDashboard() {
     };
 
     try {
-      const formData = new FormData();
-      formData.append("title", vaultTitle);
-      formData.append("description", vaultDesc);
-      formData.append("date", vaultDate || "2026");
-      formData.append("location", vaultLocation || "Home");
-      formData.append("people_tags", vaultPeople || "Family");
-      formData.append("image_url", vaultImg || fallbackUrl);
-      formData.append("user_id", targetUserId);
-
-      await fetch(`${API_BASE}/api/v1/memories`, { method: "POST", body: formData });
-    } catch {
-      console.log("Saving memory locally.");
+      await fetch(`${SUPABASE_URL}/rest/v1/memories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({
+          patient_id: "11111111-1111-1111-1111-111111111111", // Target patient UUID
+          title: vaultTitle,
+          description: vaultDesc,
+          content: vaultDesc,
+          memory_date: vaultDate || new Date().toISOString().split('T')[0],
+          location: vaultLocation || "Home",
+          tags: vaultPeople ? vaultPeople.split(",").map(t => t.trim()) : ["Family"],
+          media_url: vaultImg || fallbackUrl
+        })
+      });
+    } catch (e) {
+      console.warn("Direct Supabase memory insert failed:", e);
     }
 
     const updatedMems = [newMemory, ...memories];
@@ -921,6 +1118,104 @@ function CaregiverDashboard() {
     globalMemories = updatedMems;
 
     setVaultTitle(""); setVaultDate(""); setVaultLocation(""); setVaultPeople(""); setVaultDesc(""); setVaultImg("");
+  };
+
+  const handleSaveMedication = async (e) => {
+    e.preventDefault();
+    if (!medName || !medDosage || !medTime) return;
+    setMedError("");
+
+    const dbPatientId = "11111111-1111-1111-1111-111111111111";
+    const payload = {
+      patient_id: dbPatientId,
+      med_name: medName,
+      dosage: medDosage,
+      scheduled_time: medTime,
+      remarks: medRemarks,
+      image_url: medImg || "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400"
+    };
+
+    try {
+      let res;
+      if (editingMedId) {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/medications?id=eq.${editingMedId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            med_name: medName,
+            dosage: medDosage,
+            scheduled_time: medTime,
+            remarks: medRemarks,
+            image_url: medImg
+          })
+        });
+      } else {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/medications`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Prefer": "return=representation"
+          },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (!res.ok) throw new Error("Database request failed");
+
+      setMedName(""); setMedDosage(""); setMedTime(""); setMedRemarks(""); setMedImg("");
+      setEditingMedId(null);
+      setShowMedModal(false);
+      
+      const meds = await fetchMedicationsDirect(dbPatientId);
+      const logs = await fetchMedicationLogsDirect(dbPatientId);
+      const mappedMeds = meds.map(m => {
+        const log = logs.find(l => l.medication_id === m.id && isToday(l.logged_at));
+        return {
+          ...m,
+          taken_status: log ? log.status : "pending",
+          taken_at: log ? log.taken_at : null
+        };
+      });
+      setMedications(mappedMeds);
+    } catch (err) {
+      setMedError("Failed to save medication. Please check your connection.");
+    }
+  };
+
+  const handleDeleteMedication = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this medication?")) return;
+    setMedError("");
+    const dbPatientId = "11111111-1111-1111-1111-111111111111";
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/medications?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (!res.ok) throw new Error("Delete failed");
+
+      const meds = await fetchMedicationsDirect(dbPatientId);
+      const logs = await fetchMedicationLogsDirect(dbPatientId);
+      const mappedMeds = meds.map(m => {
+        const log = logs.find(l => l.medication_id === m.id && isToday(l.logged_at));
+        return {
+          ...m,
+          taken_status: log ? log.status : "pending",
+          taken_at: log ? log.taken_at : null
+        };
+      });
+      setMedications(mappedMeds);
+    } catch (err) {
+      setMedError("Failed to delete medication.");
+    }
   };
 
   const handleResolveAlert = async (id) => {
@@ -948,6 +1243,72 @@ function CaregiverDashboard() {
     }
   };
 
+  const handleDeleteMemory = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this memory?")) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      const updated = memories.filter(m => m.id !== id);
+      setMemories(updated);
+      globalMemories = updated;
+      setPreviewMemory(null);
+    } catch (e) {
+      console.error("Failed to delete memory from Supabase:", e);
+    }
+  };
+
+  const startEditing = (mem) => {
+    setEditingMemoryId(mem.id);
+    setEditTitle(mem.title || "");
+    setEditDesc(mem.description || "");
+    setEditLocation(mem.location || "");
+    setEditDate(mem.date || "");
+    setEditPeople(Array.isArray(mem.people_tags) ? mem.people_tags.join(", ") : mem.people_tags || "");
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${editingMemoryId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDesc,
+          content: editDesc,
+          location: editLocation,
+          memory_date: editDate,
+          tags: editPeople ? editPeople.split(",").map(p => p.trim()) : ["Family"]
+        })
+      });
+
+      const updated = memories.map(m => m.id === editingMemoryId ? {
+        ...m,
+        title: editTitle,
+        description: editDesc,
+        location: editLocation,
+        date: editDate,
+        people_tags: editPeople ? editPeople.split(",").map(p => p.trim()) : ["Family"]
+      } : m);
+
+      setMemories(updated);
+      globalMemories = updated;
+      setEditingMemoryId(null);
+      setPreviewMemory(null);
+    } catch (e) {
+      console.error("Failed to update memory in Supabase:", e);
+    }
+  };
+
   // Safe Analytics Metrics
   const safeAlerts = Array.isArray(alerts) ? alerts : [];
   const safeMedications = Array.isArray(medications) ? medications : [];
@@ -960,11 +1321,7 @@ function CaregiverDashboard() {
       : (a.patient_name === "Thomas Miller" || a.user_id === "user-thomas")
   );
 
-  const filteredMeds = safeMedications.filter(m =>
-    patient === "Eleanor Vance"
-      ? (m.user_id === "user-eleanor" || !m.user_id)
-      : (m.user_id === "user-thomas")
-  );
+  const filteredMeds = safeMedications;
 
   const filteredGameLogs = safeGameLogs.filter(g =>
     patient === "Eleanor Vance"
@@ -1226,7 +1583,12 @@ function CaregiverDashboard() {
               <Calendar className="text-teal h-6 w-6" />
               <h3 className="text-xl font-black text-navy">Live Medication Adherence Log</h3>
             </div>
-            <span className="text-xs font-black text-teal uppercase tracking-wider">Synced Live</span>
+            <button
+              onClick={() => setShowMedModal(true)}
+              className="bg-skysoft border border-skyblue hover:border-teal text-navy font-bold py-1.5 px-3.5 rounded-xl text-xs cursor-pointer transition flex items-center gap-1.5"
+            >
+              <span>⚙️ Manage Medications</span>
+            </button>
           </div>
 
           <div className="space-y-3">
@@ -1407,22 +1769,248 @@ function CaregiverDashboard() {
             <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-skyblue">
               <img src={previewMemory.mem.image_url || previewMemory.mem.photo_url} alt={previewMemory.mem.title} className="w-full h-full object-cover" />
             </div>
-            <h4 className="text-2xl font-black text-navy">{previewMemory.mem.title}</h4>
-            <p className="text-navy/70 text-xs font-medium">{previewMemory.mem.description}</p>
-            <div className="flex gap-3 pt-2">
+            {editingMemoryId === previewMemory.mem.id ? (
+              <div className="space-y-3 text-left">
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Title"
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                />
+                <input
+                  type="text"
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  placeholder="Location"
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                />
+                <input
+                  type="text"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  placeholder="Date/Year"
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                />
+                <input
+                  type="text"
+                  value={editPeople}
+                  onChange={(e) => setEditPeople(e.target.value)}
+                  placeholder="People tags (comma separated)"
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                />
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  rows="3"
+                  placeholder="Description..."
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal resize-none"
+                />
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex-grow bg-teal text-white font-black py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    onClick={() => setEditingMemoryId(null)}
+                    className="bg-skysoft text-navy font-black py-2.5 px-4 rounded-xl text-xs cursor-pointer border border-skyblue"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h4 className="text-2xl font-black text-navy">{previewMemory.mem.title}</h4>
+                <p className="text-navy/70 text-xs font-medium">{previewMemory.mem.description}</p>
+                <div className="flex flex-wrap justify-center gap-2 py-1">
+                  <span className="bg-skysoft text-teal border border-skyblue px-2 py-0.5 rounded-md text-[10px] font-bold">
+                    📍 {previewMemory.mem.location || "Munnar"}
+                  </span>
+                  <span className="bg-skysoft text-teal border border-skyblue px-2 py-0.5 rounded-md text-[10px] font-bold">
+                    📅 {previewMemory.mem.date || "2018"}
+                  </span>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => { handlePushSpotlight(previewMemory.index); setPreviewMemory(null); }}
+                    className="flex-grow bg-navy text-white font-black py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Push Spotlight
+                  </button>
+                  <button
+                    onClick={() => startEditing(previewMemory.mem)}
+                    className="bg-white border border-skyblue text-navy font-black py-2.5 px-4 rounded-xl text-xs cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteMemory(previewMemory.mem.id)}
+                    className="bg-alert/15 border border-alert/30 text-alert font-black py-2.5 px-4 rounded-xl text-xs cursor-pointer hover:bg-alert hover:text-white transition"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setPreviewMemory(null)}
+                    className="bg-skysoft text-navy font-black py-2.5 px-4 rounded-xl text-xs cursor-pointer border border-skyblue"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Medication Manager Modal */}
+      {showMedModal && (
+        <div className="fixed inset-0 bg-navy/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full border-4 border-skyblue shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto text-left">
+            <div className="flex justify-between items-center border-b border-skyblue pb-3">
+              <h4 className="text-2xl font-black text-navy">Medication Manager</h4>
               <button
-                onClick={() => { handlePushSpotlight(previewMemory.index); setPreviewMemory(null); }}
-                className="flex-grow bg-navy text-white font-black py-3 rounded-xl text-sm cursor-pointer"
+                onClick={() => { setShowMedModal(false); setEditingMedId(null); setMedName(""); setMedDosage(""); setMedTime(""); setMedRemarks(""); setMedImg(""); }}
+                className="text-navy/50 hover:text-navy font-bold cursor-pointer"
               >
-                Push Spotlight to Senior
-              </button>
-              <button
-                onClick={() => setPreviewMemory(null)}
-                className="bg-skysoft text-navy font-black py-3 px-4 rounded-xl text-sm cursor-pointer border border-skyblue"
-              >
-                Close
+                ✕
               </button>
             </div>
+
+            {medError && (
+              <div className="text-alert font-bold text-xs bg-alert/5 p-3 rounded-xl border border-alert/20 text-center">
+                {medError}
+              </div>
+            )}
+
+            {/* List of current medications */}
+            <div className="space-y-3">
+              <span className="text-xs font-black text-teal uppercase block">Current Medications</span>
+              {filteredMeds.length === 0 ? (
+                <p className="text-navy/50 text-xs italic py-2">No medications added yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {filteredMeds.map(med => (
+                    <div key={med.id} className="p-3 bg-skysoft rounded-xl border border-skyblue flex justify-between items-center gap-3">
+                      <div>
+                        <p className="font-black text-sm text-navy">{med.med_name}</p>
+                        <span className="text-[10px] text-teal font-extrabold block">
+                          {med.scheduled_time} • {med.dosage}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingMedId(med.id);
+                            setMedName(med.med_name || "");
+                            setMedDosage(med.dosage || "");
+                            setMedTime(med.scheduled_time || "");
+                            setMedRemarks(med.remarks || "");
+                            setMedImg(med.image_url || "");
+                          }}
+                          className="bg-white border border-skyblue hover:border-teal text-navy font-black py-1.5 px-3 rounded-lg text-xs cursor-pointer transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMedication(med.id)}
+                          className="bg-alert/15 border border-alert/30 text-alert font-black py-1.5 px-3 rounded-lg text-xs cursor-pointer hover:bg-alert hover:text-white transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Form to Add/Edit */}
+            <form onSubmit={handleSaveMedication} className="border-t border-skyblue pt-4 space-y-4">
+              <span className="text-xs font-black text-teal uppercase block">
+                {editingMedId ? "Edit Medication Detail" : "Add New Medication Routine"}
+              </span>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-navy uppercase block mb-1">Medication Name</label>
+                  <input
+                    type="text"
+                    value={medName}
+                    onChange={(e) => setMedName(e.target.value)}
+                    placeholder="e.g. Afternoon Medication"
+                    className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-navy uppercase block mb-1">Dosage</label>
+                  <input
+                    type="text"
+                    value={medDosage}
+                    onChange={(e) => setMedDosage(e.target.value)}
+                    placeholder="e.g. 1 Tablet"
+                    className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black text-navy uppercase block mb-1">Scheduled Time</label>
+                  <input
+                    type="text"
+                    value={medTime}
+                    onChange={(e) => setMedTime(e.target.value)}
+                    placeholder="e.g. 2:00 PM or 14:00"
+                    className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-navy uppercase block mb-1">Image URL (Optional)</label>
+                  <input
+                    type="text"
+                    value={medImg}
+                    onChange={(e) => setMedImg(e.target.value)}
+                    placeholder="e.g. https://..."
+                    className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-navy uppercase block mb-1">Special Remarks</label>
+                <textarea
+                  value={medRemarks}
+                  onChange={(e) => setMedRemarks(e.target.value)}
+                  rows="2"
+                  placeholder="e.g. Take with warm food"
+                  className="w-full bg-skysoft border border-skyblue rounded-xl p-2.5 text-navy text-xs font-bold focus:outline-none focus:border-teal resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  className="flex-grow bg-teal hover:bg-teal/90 text-white font-black py-3 rounded-xl text-sm transition cursor-pointer shadow-md"
+                >
+                  {editingMedId ? "Save Changes" : "Add Medication"}
+                </button>
+                {editingMedId && (
+                  <button
+                    type="button"
+                    onClick={() => { setEditingMedId(null); setMedName(""); setMedDosage(""); setMedTime(""); setMedRemarks(""); setMedImg(""); }}
+                    className="bg-white border border-skyblue text-navy font-black py-3 px-4 rounded-xl text-sm cursor-pointer"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
         </div>
       )}

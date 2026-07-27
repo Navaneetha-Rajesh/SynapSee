@@ -4,22 +4,74 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   Info, 
-  ShieldAlert
+  ShieldAlert,
+  Moon
 } from 'lucide-react';
 
-const API_BASE = "http://localhost:3000";
+const isTimeToShowAlert = (scheduledTimeStr) => {
+  if (!scheduledTimeStr) return false;
+  try {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-export default function MedicationAlertModal({ medications = [], onMedicationTaken }) {
+    let hours = 0;
+    let minutes = 0;
+
+    const timeClean = scheduledTimeStr.trim().toUpperCase();
+    const isAmPm = timeClean.includes("AM") || timeClean.includes("PM");
+
+    if (isAmPm) {
+      const parts = timeClean.replace(/(AM|PM)/g, "").trim().split(":");
+      hours = parseInt(parts[0], 10);
+      minutes = parts[1] ? parseInt(parts[1], 10) : 0;
+      if (timeClean.includes("PM") && hours < 12) hours += 12;
+      if (timeClean.includes("AM") && hours === 12) hours = 0;
+    } else {
+      const parts = timeClean.split(":");
+      hours = parseInt(parts[0], 10);
+      minutes = parts[1] ? parseInt(parts[1], 10) : 0;
+    }
+
+    const scheduledMinutes = hours * 60 + minutes;
+    return currentMinutes >= scheduledMinutes;
+  } catch (e) {
+    console.warn("Failed to parse scheduled time:", scheduledTimeStr, e);
+    return false;
+  }
+};
+
+export default function MedicationAlertModal({ medications = [], todayLogs = [], onMarkTaken }) {
   const [activeAlertMed, setActiveAlertMed] = useState(null);
+  const [snoozedMeds, setSnoozedMeds] = useState({}); // { [medId]: snoozeUntilTime }
 
   // Monitor upcoming pending medications and pop up modal if active alert time or triggered
   useEffect(() => {
-    // Check if there is any pending medication scheduled for now
-    const pendingMed = medications.find(m => m.taken_status === "pending");
-    if (pendingMed && !activeAlertMed) {
-      setActiveAlertMed(pendingMed);
-    }
-  }, [medications, activeAlertMed]);
+    const checkAlerts = () => {
+      const nowTimestamp = Date.now();
+      const alertMed = medications.find(m => {
+        // Check if already taken today
+        const alreadyTaken = todayLogs.some(log => log.medication_id === m.id && log.status === 'taken');
+        if (alreadyTaken) return false;
+
+        // Check if snoozed
+        const isSnoozed = snoozedMeds[m.id] && nowTimestamp < snoozedMeds[m.id];
+        if (isSnoozed) return false;
+
+        // Check if past scheduled time
+        return isTimeToShowAlert(m.scheduled_time);
+      });
+
+      if (alertMed) {
+        setActiveAlertMed(alertMed);
+      } else {
+        setActiveAlertMed(null);
+      }
+    };
+
+    checkAlerts();
+    const interval = setInterval(checkAlerts, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, [medications, todayLogs, snoozedMeds]);
 
   // Prevent closing via ESC key
   useEffect(() => {
@@ -35,32 +87,28 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
 
   const handleMarkTaken = async () => {
     if (!activeAlertMed) return;
-    const medId = activeAlertMed.id;
-    const nowIso = new Date().toISOString();
-
-    try {
-      await fetch(`${API_BASE}/api/medications/compliance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          medId: medId,
-          userId: activeAlertMed.user_id || "user-eleanor"
-        })
-      });
-    } catch (err) {
-      console.warn("Backend offline, updating compliance locally:", err);
+    if (onMarkTaken) {
+      await onMarkTaken(activeAlertMed.id);
     }
-
-    if (onMedicationTaken) {
-      onMedicationTaken(medId, nowIso);
-    }
-
     setActiveAlertMed(null);
   };
 
+  const handleSnooze = () => {
+    if (!activeAlertMed) return;
+    // Snooze for 15 minutes
+    const snoozeUntil = Date.now() + 15 * 60 * 1000;
+    setSnoozedMeds(prev => ({
+      ...prev,
+      [activeAlertMed.id]: snoozeUntil
+    }));
+    setActiveAlertMed(null);
+  };
+
+  // Find next upcoming pending medication
+  const pendingMeds = medications.filter(m => !todayLogs.some(log => log.medication_id === m.id && log.status === 'taken'));
+
   return (
     <>
-      {/* Dev/Demo Trigger Button in top area if all medications taken */}
       {medications.length > 0 && (
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-skyblue flex flex-col md:flex-row items-center justify-between gap-4 text-left">
           <div className="flex items-center gap-4">
@@ -70,8 +118,8 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
             <div>
               <span className="text-teal font-extrabold text-xs uppercase tracking-wider block">Medication Schedule</span>
               <h3 className="text-xl font-black text-navy">
-                {medications.filter(m => m.taken_status === "pending").length > 0
-                  ? `Next Medication: ${medications.find(m => m.taken_status === "pending")?.med_name} (${medications.find(m => m.taken_status === "pending")?.scheduled_time})`
+                {pendingMeds.length > 0
+                  ? `Next Medication: ${pendingMeds[0]?.med_name} (${pendingMeds[0]?.scheduled_time})`
                   : "All medications taken for today! Great job!"
                 }
               </h3>
@@ -79,9 +127,9 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
           </div>
 
           <div className="flex items-center gap-3">
-            {medications.find(m => m.taken_status === "pending") && (
+            {pendingMeds.length > 0 && (
               <button
-                onClick={() => setActiveAlertMed(medications.find(m => m.taken_status === "pending"))}
+                onClick={() => setActiveAlertMed(pendingMeds[0])}
                 className="bg-alert hover:bg-alert/90 text-white font-extrabold py-3 px-6 rounded-2xl shadow-md transition flex items-center gap-2 text-md cursor-pointer animate-pulse min-h-[48px]"
               >
                 <AlertTriangle className="h-5 w-5" />
@@ -96,11 +144,11 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
       {activeAlertMed && (
         <div 
           className="fixed inset-0 z-50 bg-navy/90 backdrop-blur-lg flex items-center justify-center p-4 sm:p-6"
-          onClick={(e) => e.stopPropagation()} // Block backdrop clicks
+          onClick={(e) => e.stopPropagation()} 
         >
           <div 
-            className="bg-white text-navy rounded-3xl max-w-lg w-full shadow-2xl border-4 border-alert p-6 sm:p-8 space-y-6 relative text-center animate-bounce-short"
-            onClick={(e) => e.stopPropagation()} // Block dialog inner clicks
+            className="bg-white text-navy rounded-3xl max-w-lg w-full shadow-2xl border-4 border-alert p-6 sm:p-8 space-y-6 relative text-center"
+            onClick={(e) => e.stopPropagation()} 
           >
             {/* Header Alert Badge */}
             <div className="mx-auto bg-alert/10 text-alert border border-alert/30 px-4 py-2 rounded-full w-fit flex items-center gap-2 animate-pulse">
@@ -137,7 +185,7 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
               </div>
             )}
 
-            {/* Mandatory Action Button */}
+            {/* Mandatory Action Buttons */}
             <div className="pt-2 space-y-3">
               <button
                 onClick={handleMarkTaken}
@@ -146,8 +194,17 @@ export default function MedicationAlertModal({ medications = [], onMedicationTak
                 <CheckCircle2 className="h-7 w-7 text-skyblue" />
                 <span>Mark Medicine Taken</span>
               </button>
+
+              <button
+                onClick={handleSnooze}
+                className="w-full bg-white hover:bg-skysoft text-navy border-2 border-skyblue font-black py-3 px-6 rounded-2xl shadow-sm transition text-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Moon className="h-5 w-5 text-teal" />
+                <span>Snooze / Remind Later (15 min)</span>
+              </button>
+              
               <p className="text-navy/50 text-[11px] font-bold uppercase tracking-wider">
-                This prompt will remain open until marked taken to ensure health safety.
+                This prompt will remain active until completed or snoozed.
               </p>
             </div>
 
