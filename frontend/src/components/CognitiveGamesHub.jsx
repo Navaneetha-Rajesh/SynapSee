@@ -11,7 +11,6 @@ import {
   Grid, 
   HelpCircle, 
   Flower2, 
-  Smile, 
   Layers, 
   ListOrdered, 
   Clock
@@ -65,15 +64,6 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
       category: "Musical Memory",
       color: "bg-indigo-600",
       description: "Listen to a song snippet and select the correct next line of lyrics."
-    },
-    {
-      id: "find-the-smile",
-      title: "5. Find the Smile",
-      subtitle: "Where's Waldo Style",
-      icon: Smile,
-      category: "Spatial Attention",
-      color: "bg-emerald-600",
-      description: "Tap directly on your family member in a group picture."
     }
   ];
 
@@ -122,8 +112,7 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
       "photo-recall": "Photo Recall",
       "sequencing": "Life Event Sequencing",
       "name-the-voice": "Name the Voice",
-      "continue-song": "Song Completion",
-      "find-the-smile": "Find the Smile"
+      "continue-song": "Song Completion"
     };
 
     try {
@@ -272,9 +261,6 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
               {activeGameId === "continue-song" && (
                 loading ? <div className="text-center font-bold py-12">Loading memory questions...</div> :
                 <ContinueTheSongGame gameData={gameData} onComplete={finishGame} />
-              )}
-              {activeGameId === "find-the-smile" && (
-                <FindTheSmileGame onComplete={finishGame} />
               )}
             </>
           )}
@@ -576,32 +562,3 @@ function ContinueTheSongGame({ gameData, onComplete }) {
     </div>
   );
 }
-
-// ====================================================
-// SUB-GAME 7: Find the Smile ("Where's Waldo")
-// ====================================================
-function FindTheSmileGame({ onComplete }) {
-  const [tapped, setTapped] = useState(false);
-
-  const handleImageTap = () => {
-    setTapped(true);
-    setTimeout(() => onComplete(1, 0), 1000);
-  };
-
-  return (
-    <div className="space-y-6 text-center max-w-lg mx-auto">
-      <h3 className="text-2xl font-black text-navy">Tap on your grandson Leo in the photo!</h3>
-      <div onClick={handleImageTap} className="relative aspect-[4/3] rounded-2xl overflow-hidden border-4 border-teal cursor-pointer shadow-lg">
-        <img src="https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=800" alt="Family group" className="w-full h-full object-cover" />
-        {tapped && (
-          <div className="absolute top-1/3 left-1/2 border-4 border-teal bg-teal/30 h-20 w-20 rounded-full animate-ping" />
-        )}
-      </div>
-      <p className="text-teal font-extrabold text-xs">Tap anywhere on the photo where you see Leo's face</p>
-    </div>
-  );
-}
-
-
-
-
