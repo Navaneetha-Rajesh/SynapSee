@@ -98,6 +98,17 @@ app.post(['/api/v1/memories', '/api/memories'], async (req, res) => {
     mockMemories.push(newMemory);
     return res.json(newMemory);
 });
+// Spotlight sync endpoints
+let activeSpotlightMemoryId = "munnar-2018";
+app.get('/api/spotlight', (req, res) => {
+    return res.json({ activeId: activeSpotlightMemoryId });
+});
+app.post('/api/spotlight', (req, res) => {
+    if (req.body && req.body.activeId) {
+        activeSpotlightMemoryId = req.body.activeId;
+    }
+    return res.json({ activeId: activeSpotlightMemoryId });
+});
 // ==========================================
 // 2. ROUTINES / MEDICATIONS ENDPOINTS
 // ==========================================

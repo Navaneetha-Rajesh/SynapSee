@@ -424,12 +424,29 @@ function PatientInterface({ isMuted, setIsMuted }) {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     fetchData();
 
-    const syncTimer = setInterval(() => {
-      if (Array.isArray(globalMemories)) {
-        setMemories([...globalMemories]);
+    const syncTimer = setInterval(async () => {
+      try {
+        const memRes = await fetch(`${API_BASE}/api/memories`);
+        const mems = await memRes.json();
+        if (Array.isArray(mems) && mems.length > 0) {
+          setMemories(mems);
+          globalMemories = mems;
+        }
+
+        const spotRes = await fetch(`${API_BASE}/api/spotlight`);
+        const spotData = await spotRes.json();
+        const spotId = spotData.activeId;
+        if (spotId && Array.isArray(mems)) {
+          const idx = mems.findIndex(m => m.id === spotId);
+          if (idx !== -1) {
+            setCurrentIdx(idx);
+            globalActiveMemoryIdx = idx;
+          }
+        }
+      } catch (e) {
+        console.warn("Offline sync memories / spotlight:", e);
       }
-      setCurrentIdx(globalActiveMemoryIdx);
-    }, 2000);
+    }, 3000);
 
     return () => {
       clearInterval(timer);
@@ -755,6 +772,7 @@ function PatientInterface({ isMuted, setIsMuted }) {
 // ----------------------------------------------------
 function CaregiverDashboard() {
   const [patient, setPatient] = useState("Eleanor Vance");
+  const targetUserId = patient === "Eleanor Vance" ? "user-eleanor" : "user-thomas";
   const [alerts, setAlerts] = useState([]);
   const [memories, setMemories] = useState(globalMemories);
   const [medications, setMedications] = useState([]);
@@ -762,6 +780,18 @@ function CaregiverDashboard() {
   const [previewMemory, setPreviewMemory] = useState(null);
   const [aiSummary, setAiSummary] = useState("");
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [digestData, setDigestData] = useState(null);
+
+  const parseDigest = (rawOutput) => {
+    if (!rawOutput) return null;
+    try {
+      let clean = rawOutput.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      return JSON.parse(clean);
+    } catch (err) {
+      console.error("Failed to parse digest JSON:", err);
+      return null;
+    }
+  };
 
   // Memory Form state
   const [isDragOver, setIsDragOver] = useState(false);
@@ -808,13 +838,23 @@ function CaregiverDashboard() {
 
   const fetchAiSummary = useCallback(async (patientId) => {
     setLoadingSummary(true);
+    setDigestData(null);
+
     try {
-      const res = await fetch(`${API_BASE}/api/caregiver/insights/${patientId}`);
-      const data = await res.json();
-      setAiSummary(data.summary || "No active insights available for this period.");
-    } catch (e) {
-      console.warn("Error fetching AI summary:", e);
-      setAiSummary("Sarah completed her daily medication. Her memory recall game score was 100% with stable responses, showing positive cognitive trend today.");
+      const targetId = "11111111-1111-1111-1111-111111111111";
+      const digestRes = await fetch(`http://localhost:5678/webhook/caregiver-digest?patientId=${targetId}`);
+      const data = await digestRes.json();
+      
+      if (data && data.output) {
+        // Output wrapped JSON
+        const parsed = parseDigest(data.output);
+        if (parsed) setDigestData(parsed);
+      } else {
+        // Direct JSON response
+        setDigestData(data);
+      }
+    } catch (err) {
+      console.warn("n8n local digest webhook offline:", err);
     } finally {
       setLoadingSummary(false);
     }
@@ -844,8 +884,6 @@ function CaregiverDashboard() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) processFile(e.target.files[0]);
   };
-
-  const targetUserId = patient === "Eleanor Vance" ? "user-eleanor" : "user-thomas";
 
   const handleAddMemorySubmit = async (e) => {
     e.preventDefault();
@@ -894,10 +932,19 @@ function CaregiverDashboard() {
     setAlerts(prev => (Array.isArray(prev) ? prev : []).map(a => a.id === id ? { ...a, status: "resolved" } : a));
   };
 
-  const handlePushSpotlight = (index) => {
+  const handlePushSpotlight = async (index) => {
     if (memories && memories[index]) {
-      globalActiveMemoryIdx = index;
-      alert(`"${memories[index].title}" has been pushed to the Senior Portal Spotlight!`);
+      const memory = memories[index];
+      try {
+        await fetch(`${API_BASE}/api/spotlight`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activeId: memory.id })
+        });
+        alert(`"${memory.title}" has been pushed to the Senior Portal Spotlight!`);
+      } catch (e) {
+        console.warn("Failed to push spotlight to server:", e);
+      }
     }
   };
 
@@ -933,6 +980,47 @@ function CaregiverDashboard() {
   const avgGameAccuracy = filteredGameLogs.length > 0
     ? Math.round(filteredGameLogs.reduce((acc, g) => acc + (g.accuracy_pct || 80), 0) / filteredGameLogs.length)
     : (patient === "Eleanor Vance" ? 85 : 62);
+  const historicalArray = digestData?.historical_analytics && Array.isArray(digestData.historical_analytics)
+    ? digestData.historical_analytics
+    : [];
+
+  const latestHist = historicalArray.length > 0
+    ? historicalArray[historicalArray.length - 1]
+    : null;
+
+  const displayAccuracy = digestData?.latest_session?.accuracy_percentage !== undefined
+    ? `${Math.round(digestData.latest_session.accuracy_percentage)}%`
+    : `${avgGameAccuracy}%`;
+
+  const displayAccuracySub = digestData?.latest_session
+    ? `Latest: ${digestData.latest_session.game_name}`
+    : `${totalGamesPlayed} games logged`;
+
+  const displayMedAdherence = latestHist?.medication_adherence_rate !== undefined
+    ? `${latestHist.medication_adherence_rate}%`
+    : `${medAdherencePct}%`;
+
+  const displayMedSub = digestData?.medication_and_adherence?.medication_logs_count !== undefined
+    ? `${digestData.medication_and_adherence.medication_logs_count} logs synced`
+    : `${completedMeds.length}/{filteredMeds.length} Taken`;
+
+  const displayHesitation = latestHist?.speech_hesitation_score !== undefined
+    ? `${latestHist.speech_hesitation_score}%`
+    : "15%";
+
+  if (loadingSummary && !digestData) {
+    return (
+      <div className="flex-1 bg-skysoft flex flex-col items-center justify-center p-12 min-h-[70vh] space-y-6 text-center">
+        <div className="bg-navy p-5 rounded-full shadow-2xl text-white">
+          <Brain className="h-16 w-16 text-skyblue animate-spin" />
+        </div>
+        <h2 className="text-3xl font-black text-navy leading-tight">Generating Caregiver AI Digest...</h2>
+        <p className="text-teal font-extrabold max-w-md text-sm leading-relaxed">
+          Please wait. Ollama and n8n are running cognitive analytics models to compile games, speech interaction signals, and medication compliance logs.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-skysoft p-6 max-w-7xl mx-auto w-full space-y-6 text-left">
@@ -960,24 +1048,24 @@ function CaregiverDashboard() {
         <div className="bg-white border-2 border-teal p-6 rounded-3xl shadow-sm space-y-2">
           <span className="text-teal font-extrabold text-xs uppercase tracking-wider block">Game Analytics Accuracy</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-black text-navy">{avgGameAccuracy}%</span>
-            <span className="text-teal font-extrabold text-xs">{totalGamesPlayed} games logged</span>
+            <span className="text-4xl font-black text-navy">{displayAccuracy}</span>
+            <span className="text-teal font-extrabold text-xs">{displayAccuracySub}</span>
           </div>
         </div>
 
         <div className="bg-white border-2 border-teal p-6 rounded-3xl shadow-sm space-y-2">
           <span className="text-teal font-extrabold text-xs uppercase tracking-wider block">Medication Compliance</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-black text-navy">{medAdherencePct}%</span>
-            <span className="text-teal font-extrabold text-xs">{completedMeds.length}/{filteredMeds.length} Taken</span>
+            <span className="text-4xl font-black text-navy">{displayMedAdherence}</span>
+            <span className="text-teal font-extrabold text-xs">{displayMedSub}</span>
           </div>
         </div>
 
         <div className="bg-white border-2 border-teal p-6 rounded-3xl shadow-sm space-y-2">
-          <span className="text-teal font-extrabold text-xs uppercase tracking-wider block">Cognitive Score Trend</span>
+          <span className="text-teal font-extrabold text-xs uppercase tracking-wider block">Speech Hesitation Index</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-black text-navy">88/100</span>
-            <span className="text-teal font-extrabold text-xs">Stable recall</span>
+            <span className="text-4xl font-black text-navy">{displayHesitation}</span>
+            <span className="text-teal font-extrabold text-xs">{latestHist ? "Active tracking" : "Stable recall"}</span>
           </div>
         </div>
 
@@ -1003,15 +1091,32 @@ function CaregiverDashboard() {
             <p className="text-teal font-extrabold text-[10px] uppercase tracking-wider">Ollama & n8n Synced Cognitive Insights</p>
           </div>
         </div>
-        {loadingSummary ? (
+        {loadingSummary && !digestData ? (
           <div className="flex items-center gap-2 text-teal font-bold py-2">
             <div className="h-4 w-4 border-2 border-teal border-t-transparent rounded-full animate-spin" />
             <span>Analyzing patient activity logs...</span>
           </div>
         ) : (
-          <p className="text-navy font-bold text-lg leading-relaxed italic">
-            "{aiSummary}"
-          </p>
+          <div className="space-y-4 text-left">
+            <div>
+              <span className="text-xs font-black text-teal uppercase tracking-wider block">Cognitive Performance</span>
+              <p className="text-navy font-bold text-md italic mt-1">
+                "{digestData?.caretaker_summary?.cognitive_performance || "Eleanor's cognitive performance is steady, retaining wedding dates and Munnar locations cleanly."}"
+              </p>
+            </div>
+            <div>
+              <span className="text-xs font-black text-teal uppercase tracking-wider block">Speech & Hesitation Trends</span>
+              <p className="text-navy font-bold text-md italic mt-1">
+                "{digestData?.caretaker_summary?.speech_hesitation_trends || "Speech rate is clear and normal, with hesitation indices below alert thresholds."}"
+              </p>
+            </div>
+            <div>
+              <span className="text-xs font-black text-teal uppercase tracking-wider block">Recommended Actions</span>
+              <p className="text-navy font-bold text-md italic mt-1">
+                "{digestData?.caretaker_summary?.action_items || "Engage in another song matching exercise or discuss old family trip photos to reinforce recent prompts."}"
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -1029,6 +1134,38 @@ function CaregiverDashboard() {
           </div>
 
           <div className="space-y-4">
+            {/* Latest Session Details from n8n */}
+            {digestData?.latest_session && (
+              <div className="bg-teal/10 border-2 border-teal/30 p-5 rounded-2xl space-y-3 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="bg-teal text-white font-black text-[10px] uppercase px-3 py-1 rounded-full">
+                    Latest Activity Details
+                  </span>
+                  <span className="text-navy/60 text-xs font-bold">
+                    {new Date(digestData.latest_session.played_at_utc).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-black text-navy text-lg">{digestData.latest_session.game_name}</h4>
+                  <p className="text-xs font-bold text-teal">Key: {digestData.latest_session.game_key}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center pt-2">
+                  <div className="bg-white p-3 rounded-xl border border-skyblue">
+                    <span className="text-navy font-black text-lg block">{digestData.latest_session.accuracy_percentage}%</span>
+                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-teal">Accuracy</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-skyblue">
+                    <span className="text-navy font-black text-lg block">{digestData.latest_session.correct_count} - {digestData.latest_session.wrong_count}</span>
+                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-teal">Right/Wrong</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-skyblue">
+                    <span className="text-navy font-black text-lg block">{digestData.latest_session.duration_seconds}s</span>
+                    <span className="text-[9px] uppercase tracking-wider font-extrabold text-teal">Duration</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <span className="text-xs font-black text-teal uppercase tracking-wider block">Recent Cognitive Game Logs</span>
             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
               {filteredGameLogs.length === 0 ? (
@@ -1050,6 +1187,35 @@ function CaregiverDashboard() {
                 ))
               )}
             </div>
+
+            {/* n8n Historical Trend Table */}
+            {historicalArray.length > 0 && (
+              <div className="border-t border-skyblue pt-4 space-y-3">
+                <span className="text-xs font-black text-teal uppercase tracking-wider block">n8n Historical Trend Analysis</span>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs font-bold text-navy">
+                    <thead>
+                      <tr className="border-b border-skyblue text-teal uppercase text-[9px] tracking-wider">
+                        <th className="py-2">Record</th>
+                        <th className="py-2">Hesitation</th>
+                        <th className="py-2">Avg Accuracy</th>
+                        <th className="py-2">Meds Adherence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historicalArray.map((hist) => (
+                        <tr key={hist.record_number} className="border-b border-skysoft hover:bg-skysoft">
+                          <td className="py-2">#{hist.record_number}</td>
+                          <td className="py-2">{hist.speech_hesitation_score}%</td>
+                          <td className="py-2">{hist.avg_game_accuracy}%</td>
+                          <td className="py-2">{hist.medication_adherence_rate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
