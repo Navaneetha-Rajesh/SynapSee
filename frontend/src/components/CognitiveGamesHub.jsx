@@ -118,6 +118,14 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
     const start = startTime ? new Date(startTime) : now;
     const duration = Math.max(1, Math.round((now.getTime() - start.getTime()) / 1000));
 
+    const gameNames = {
+      "photo-recall": "Photo Recall",
+      "sequencing": "Life Event Sequencing",
+      "name-the-voice": "Name the Voice",
+      "continue-song": "Song Completion",
+      "find-the-smile": "Find the Smile"
+    };
+
     try {
       await fetch("http://localhost:5678/webhook/game-analytics", {
         method: "POST",
@@ -125,14 +133,11 @@ export default function CognitiveGamesHub({ memories = [], onReturnToDashboard }
         body: JSON.stringify({
           patientId: "11111111-1111-1111-1111-111111111111",
           gameKey: activeGameId,
+          gameName: gameNames[activeGameId] || activeGameId,
           score: finalCorrect,
-          durationSeconds: duration,
-          correctCount: finalCorrect,
           wrongCount: finalWrong,
-          metrics: {
-            accuracy: Math.round((finalCorrect / Math.max(1, finalCorrect + finalWrong)) * 100)
-          },
-          timestamp: new Date().toISOString()
+          totalQuestions: finalCorrect + finalWrong,
+          durationSeconds: duration
         })
       });
     } catch (e) {
